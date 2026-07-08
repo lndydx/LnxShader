@@ -44,10 +44,10 @@ vec3 skyColorByWorldTime(int wt, float sunHeight, float rain) {
 }
 
 vec3 waterTintByTime(float sunHeight, int wt) {
-    vec3 night   = vec3(0.45, 0.45, 0.45);
-    vec3 sunrise = vec3(0.88, 0.78, 0.68);
-    vec3 day     = vec3(0.82, 0.88, 0.80);
-    vec3 sunset  = vec3(0.90, 0.70, 0.58);
+    vec3 night   = vec3(0.05, 0.09, 0.11);
+    vec3 sunrise = vec3(0.30, 0.34, 0.32);
+    vec3 day     = vec3(0.10, 0.34, 0.36);
+    vec3 sunset  = vec3(0.26, 0.30, 0.28);
 
     bool isMorning = wt < 12000;
     vec3 horizonCol = isMorning ? sunrise : sunset;
@@ -82,7 +82,7 @@ void main() {
     float sunHeight  = sunDirWorld.y;
 
     float baseLuma = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
-    vec3 desatBase = mix(baseColor.rgb, vec3(baseLuma), 0.35);
+    vec3 desatBase = mix(baseColor.rgb, vec3(baseLuma), 0.20);
     vec3 clearTint = desatBase * waterTintByTime(sunHeight, worldTime);
 
     vec3 partialDesat = mix(baseColor.rgb, vec3(baseLuma), 0.5);
@@ -100,13 +100,13 @@ void main() {
         vec3 reflectDir = reflect(viewDir, flatNormal);
         vec3 worldReflectDir = normalize((gbufferModelViewInverse * vec4(reflectDir, 0.0)).xyz);
 
-        reflectionColor = mix(skyColClamped * 0.65, skyColClamped * 1.05, clamp(worldReflectDir.y * 0.5 + 0.5, 0.0, 1.0));
+        reflectionColor = mix(skyColClamped * 0.45, skyColClamped * 0.80, clamp(worldReflectDir.y * 0.5 + 0.5, 0.0, 1.0));
     } else {
-        reflectionColor = skyColClamped * 0.65;
+        reflectionColor = skyColClamped * 0.45;
     }
 
-    float fresnel = pow(1.0 - clamp(dot(-viewDir, N), 0.0, 1.0), 5.0);
-    fresnel = clamp(fresnel * 0.85 + 0.06, 0.0, 1.0);
+    float fresnel = pow(1.0 - clamp(dot(-viewDir, N), 0.0, 1.0), 3.0);
+    fresnel = clamp(fresnel * 0.85 + 0.15, 0.0, 1.0);
 
     float lmLuma = dot(lm, vec3(0.299, 0.587, 0.114));
     float lmNightFactor = smoothstep(0.0, NIGHT_HEIGHT_THRESHOLD, sunHeight);
@@ -117,8 +117,8 @@ void main() {
     vec3 caveAmbient = baseColor.rgb * 0.35;
     vec3 ambientReflection = mix(caveAmbient, reflectionColor, skyVisibility);
 
-    // fallback ini dipakai composite1 kalau SSR gak nemu hit
-    vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, fresnel);
+    float reflectWeight = fresnel * float(isEyeInWater == 0);
+    vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, reflectWeight);
 
     float caveAlphaReduce = mix(0.15, 0.0, skyVisibility);
     float finalAlpha = clamp((0.5 - rainStrength * 0.05) + fresnel * 0.40 - caveAlphaReduce, 0.0, 1.0);
@@ -127,18 +127,15 @@ void main() {
     float spec = max(dot(N, halfDir), 0.0);
 
     float specularHighlight = pow(spec, 50.0);
-    vec3 specularColor = vec3(1.0, 1.0, 0.9) * 2.0;
+    vec3 specularColor = vec3(1.0, 1.0, 0.9) * 1.0;
     if (sunHeight < NIGHT_HEIGHT_THRESHOLD) {
         specularColor = vec3(0.35, 0.38, 0.4) * 0.6;
     }
     specularColor *= (1.0 - rainStrength * 0.7);
 
-    finalColor += specularColor * specularHighlight * (fresnel * 0.5 + 0.5) * skyVisibility * float(isEyeInWater == 0);
 
     gl_FragData[0] = vec4(finalColor, finalAlpha);
 
-    // pake flatNormal (stabil) dicampur dikit sama wave normal, biar SSR gak berisik
-    // gara-gara wave normal berubah cepet tiap frame (ini penyebab noise SSR kamu dulu)
     vec3 ssrNormal = normalize(mix(flatNormal, N, 0.25));
     gl_FragData[1] = vec4(ssrNormal * 0.5 + 0.5, float(isEyeInWater == 0));
 }

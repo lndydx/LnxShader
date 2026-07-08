@@ -19,24 +19,14 @@ varying vec2 texcoord;
 
 #include "/lib/composite_common.glsl"
 
-// Step lebih kecil & lebih rapat di awal (deket kamera, di situ kejadian "patah-patah"
-// paling kentara karena objek kecil kayak log gampang kelewat), growth dikurangin
-// biar makin jauh langkahnya gak langsung meloncat jauh.
-#define SSR_MAX_STEPS 36
-#define SSR_INITIAL_STEP 0.03
-#define SSR_STEP_GROWTH 1.10
+#define SSR_MAX_STEPS 192
+#define SSR_INITIAL_STEP 0.05
+#define SSR_STEP_GROWTH 1.05    
 #define SSR_MAX_DIST 250.0
-#define SSR_THICKNESS 0.6
-#define SSR_REFINE_STEPS 6
-
-// Naikin batas bawah reflectivity biar reflection keliatan jelas
-// walau lagi natap air dari atas (sudut fresnel kecil).
-#define SSR_MIN_REFLECTIVITY 0.30
-#define SSR_MAX_REFLECTIVITY 0.92
+#define SSR_THICKNESS 2.71
+#define SSR_REFINE_STEPS 1
 
 float ditherPattern(vec2 uv) {
-    // hash sederhana buat jitter posisi awal ray, mecah pola stepping
-    // jadi noise halus (lebih enak diliat daripada garis patah-patah)
     return fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
@@ -64,7 +54,8 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
 
             if (rayPos.z < sceneViewPos.z) {
                 float depthDiff = sceneViewPos.z - rayPos.z;
-                if (depthDiff < SSR_THICKNESS) {
+                float dynamicThickness = SSR_THICKNESS * clamp(1.0 + travelled * 0.015, 1.0, 4.0);
+                if (depthDiff < dynamicThickness) {
                     hitUV = sampleUV;
                     hit = true;
                     break;
@@ -103,16 +94,13 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
     return texture2D(colortex0, hitUV).rgb;
 }
 
-/* DRAWBUFFERS:0 */
+/* DRAWBUFFERS:3 */
 
 void main() {
-    vec3 baseColor = texture2D(colortex0, texcoord).rgb;
     vec4 normalData = texture2D(colortex1, texcoord);
 
-    // FIX bocor ke darat: cuma pixel yang BENERAN solid air (bukan hasil blur
-    // filtering di tepi pantai) yang dianggep air.
     if (normalData.a < 0.95) {
-        gl_FragData[0] = vec4(baseColor, 1.0);
+        gl_FragData[0] = vec4(0.0);
         return;
     }
 
@@ -125,12 +113,5 @@ void main() {
     bool hit;
     vec3 reflectionColor = raymarchSSR(viewPos, reflectDir, texcoord, hit);
 
-    if (hit) {
-        float fresnel = pow(1.0 - clamp(dot(-V, N), 0.0, 1.0), 5.0);
-        fresnel = clamp(fresnel, 0.0, 1.0);
-        fresnel = mix(SSR_MIN_REFLECTIVITY, SSR_MAX_REFLECTIVITY, fresnel);
-        baseColor = mix(baseColor, reflectionColor, fresnel);
-    }
-
-    gl_FragData[0] = vec4(baseColor, 1.0);
+    gl_FragData[0] = vec4(reflectionColor, hit ? 1.0 : 0.0);
 }

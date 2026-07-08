@@ -52,20 +52,19 @@ varying float eyeInWater;
 
 #define TARGET_LUMA 0.12
 #define EXPOSURE_MIN 0.9
-#define EXPOSURE_MAX 1.8
+#define EXPOSURE_MAX 1.3   
 #define EXPOSURE_ADAPT_RATE 1.0
 
-#define BLOOM_THRESHOLD 0.85
+#define BLOOM_THRESHOLD 0.95  
 #define BLOOM_KNEE 0.35
-#define BLOOM_INTENSITY 0.6
+#define BLOOM_INTENSITY 0.4   
 #define BLOOM_CORE_BOOST 1.2
 #define BLOOM_RADIUS_PX 0.75
 #define BLOOM_RADIUS_PX_WIDE 2.0
-#define DEBUG_BLOOM 0
 
-#define SATURATION 1.25
+#define SATURATION 1.4   
 #define VIBRANCE 0.35
-#define CONTRAST 0.1
+#define CONTRAST 0.15    
 #define SHARPEN_STRENGTH 0.1
 
 #define DAY_HEIGHT_THRESHOLD 0.5
@@ -134,22 +133,33 @@ void main() {
     float linDepth = linearizeDepth(rawDepth);
     bool isSky     = rawDepth >= 0.9999;
 
-    vec3 sunDir = getSunDirWorld();
-    vec3 rayDir = vec3(0.0);
-
-    if (eyeInWater > 0.5) {
-        float rawDepth1 = texture2D(depthtex1, texcoord).r;
-        bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
-
-        vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
-        col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky);
-    } else {
+        vec3 sunDir = getSunDirWorld();
         vec3 viewDirVS = getViewPos(texcoord, 0.0);
-        rayDir = normalize((gbufferModelViewInverse * vec4(viewDirVS, 0.0)).xyz);
-        float sceneDist = linDepth * far;
+        vec3 rayDir = normalize((gbufferModelViewInverse * vec4(viewDirVS, 0.0)).xyz);
 
-        vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);
-        col = mix(col, clouds.rgb, clouds.a);
+        if (eyeInWater > 0.5) {
+            float rawDepth1 = texture2D(depthtex1, texcoord).r;
+            bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
+
+            vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
+
+            #define DEBUG_WATERTOSKY 1  
+
+            #if DEBUG_WATERTOSKY
+                if (eyeInWater > 0.5) {
+                    float rawDepth1_dbg = texture2D(depthtex1, texcoord).r;
+                    bool isWaterToSky_dbg = (rawDepth < 0.9999) && (rawDepth1_dbg >= 0.9999);
+                    gl_FragData[0] = isWaterToSky_dbg ? vec4(1.0, 0.0, 1.0, 1.0) : vec4(0.0);
+                    gl_FragData[1] = vec4(0.0);
+                    return;
+                }
+            #endif
+
+            col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir.y);
+        } else {
+            float sceneDist = linDepth * far;
+            vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);
+            col = mix(col, clouds.rgb, clouds.a);
 
         if (!isSky) {
             vec3 viewPos = getViewPos(texcoord, rawDepth);

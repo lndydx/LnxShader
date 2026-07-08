@@ -1,28 +1,152 @@
 #version 120
 
-uniform sampler2D lightmap;
 uniform sampler2D texture;
+uniform sampler2D lightmap;
 uniform float alphaTestRef = 0.1;
+uniform mat4 gbufferModelViewInverse;
+uniform vec3 sunPosition;
+uniform int worldTime;
+uniform float rainStrength;
+uniform int isEyeInWater;
+uniform float frameTimeCounter;
 
-varying vec2 lmcoord;
 varying vec2 texcoord;
+varying vec2 lmcoord;
 varying vec4 glcolor;
+varying vec3 viewPos;
+varying vec3 viewNormal;
+varying vec3 flatNormal;
+varying float isRealWater;
 
-#define RAIN_DROP_TINT vec3(0.88, 0.86, 0.82)
-#define RAIN_DROP_ALPHA_MULT 0.55
+#define STORM_WATER_COLOR vec3(0.34, 0.38, 0.4)
+#define DAY_HEIGHT_THRESHOLD 0.5
+#define NIGHT_HEIGHT_THRESHOLD -0.3
 
-/* DRAWBUFFERS:0 */
+vec3 skyColorByWorldTime(int wt, float sunHeight, float rain) {
+    vec3 night   = vec3(0.03, 0.03, 0.045);
+    vec3 sunrise = vec3(0.90, 0.55, 0.40);
+    vec3 day     = vec3(0.42, 0.70, 0.92);
+    vec3 noon    = vec3(0.30, 0.62, 0.98);
+    vec3 sunset  = vec3(0.85, 0.45, 0.35);
+
+    bool isMorning = wt < 12000;
+    vec3 horizonCol = isMorning ? sunrise : sunset;
+
+    float dayFactor   = smoothstep(0.0, DAY_HEIGHT_THRESHOLD, sunHeight);
+    float noonFactor  = smoothstep(DAY_HEIGHT_THRESHOLD, 1.0, sunHeight);
+    float nightFactor = smoothstep(0.0, NIGHT_HEIGHT_THRESHOLD, sunHeight);
+
+    vec3 skyCol = mix(horizonCol, day, dayFactor);
+    skyCol = mix(skyCol, noon, noonFactor);
+    skyCol = mix(skyCol, night, nightFactor);
+
+    skyCol = mix(skyCol, STORM_WATER_COLOR, rain);
+    return skyCol;
+}
+
+vec3 waterTintByTime(float sunHeight, int wt) {
+    vec3 night   = vec3(0.28, 0.32, 0.34);
+    vec3 sunrise = vec3(0.68, 0.66, 0.60);
+    vec3 day     = vec3(0.58, 0.70, 0.68);
+    vec3 sunset  = vec3(0.62, 0.60, 0.56);
+
+    bool isMorning = wt < 12000;
+    vec3 horizonCol = isMorning ? sunrise : sunset;
+
+    float dayFactor   = smoothstep(0.0, DAY_HEIGHT_THRESHOLD, sunHeight);
+    float nightFactor = smoothstep(0.0, NIGHT_HEIGHT_THRESHOLD, sunHeight);
+
+    vec3 tint = mix(horizonCol, day, dayFactor);
+    tint = mix(tint, night, nightFactor);
+    return tint;
+}
+
+float sparkleHash(vec2 p) {
+    return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+/* DRAWBUFFERS:01 */
 
 void main() {
-    vec4 color = texture2D(texture, texcoord) * glcolor;
-    color *= texture2D(lightmap, lmcoord);
+    vec4 baseColor = texture2D(texture, texcoord) * glcolor;
 
-    color.rgb *= RAIN_DROP_TINT;
-    color.a   *= RAIN_DROP_ALPHA_MULT;
-
-    if (color.a < alphaTestRef) {
+    if (baseColor.a < alphaTestRef) {
         discard;
     }
 
-    gl_FragData[0] = color;
+    vec3 lm = texture2D(lightmap, lmcoord).rgb;
+
+    if (isRealWater < 0.5) {
+        gl_FragData[0] = vec4(baseColor.rgb * lm, baseColor.a);
+        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); 
+        return;
+    }
+
+    vec3 sunDirView  = normalize(sunPosition);
+    vec3 sunDirWorld = normalize(mat3(gbufferModelViewInverse) * sunPosition);
+    float sunHeight  = sunDirWorld.y;
+
+    float baseLuma = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
+    vec3 desatBase = mix(baseColor.rgb, vec3(baseLuma), 0.55);
+    vec3 clearTint = desatBase * waterTintByTime(sunHeight, worldTime);
+
+    vec3 partialDesat = mix(baseColor.rgb, vec3(baseLuma), 0.5);
+    vec3 stormTint = mix(partialDesat, STORM_WATER_COLOR, 0.45);
+    baseColor.rgb  = mix(clearTint, stormTint, rainStrength);
+
+    vec3 N = normalize(viewNormal);
+    vec3 viewDir = normalize(viewPos);
+
+    vec3 skyCol = skyColorByWorldTime(worldTime, sunHeight, rainStrength);
+    vec3 skyColClamped = max(skyCol, vec3(0.05, 0.06, 0.09));
+
+    vec3 reflectionColor;
+    if (isEyeInWater == 0) {
+        vec3 reflectDir = reflect(viewDir, flatNormal);
+        vec3 worldReflectDir = normalize((gbufferModelViewInverse * vec4(reflectDir, 0.0)).xyz);
+
+        reflectionColor = mix(skyColClamped * 0.65, skyColClamped * 1.05, clamp(worldReflectDir.y * 0.5 + 0.5, 0.0, 1.0));
+    } else {
+        reflectionColor = skyColClamped * 0.65;
+    }
+
+    float fresnel = pow(1.0 - clamp(dot(-viewDir, N), 0.0, 1.0), 5.0);
+    fresnel = clamp(fresnel * 0.95 + 0.02, 0.0, 1.0);
+
+    float lmLuma = dot(lm, vec3(0.299, 0.587, 0.114));
+    float lmNightFactor = smoothstep(0.0, NIGHT_HEIGHT_THRESHOLD, sunHeight);
+    vec3 lmNeutral = mix(lm, vec3(lmLuma), 0.02 * lmNightFactor);
+
+    float skyVisibility = clamp(lmcoord.y, 0.0, 1.0);
+
+    vec3 caveAmbient = baseColor.rgb * 0.35;
+    vec3 ambientReflection = mix(caveAmbient, reflectionColor, skyVisibility);
+
+    vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, fresnel);
+
+    float caveAlphaReduce = mix(0.15, 0.0, skyVisibility);
+    float finalAlpha = clamp((0.35 - rainStrength * 0.05) + fresnel * 0.55 - caveAlphaReduce, 0.0, 1.0);
+
+    vec3 halfDir = normalize(sunDirView - viewDir);
+    float spec = max(dot(N, halfDir), 0.0);
+
+    float specularHighlight = pow(spec, 50.0);
+    vec3 specularColor = vec3(1.0, 1.0, 0.9) * 2.0;
+    if (sunHeight < NIGHT_HEIGHT_THRESHOLD) {
+        specularColor = vec3(0.35, 0.38, 0.4) * 0.6;
+    }
+    specularColor *= (1.0 - rainStrength * 0.7);
+
+    vec2 sparkleUV = gl_FragCoord.xy * 0.75;
+    float sparkleTime = floor(frameTimeCounter * 12.0);
+    float sparkleRand = sparkleHash(sparkleUV + sparkleTime);
+    float sparkleMask = step(0.965, sparkleRand);
+    float sparkle = sparkleMask * pow(spec, 8.0) * float(isEyeInWater == 0);
+
+    finalColor += specularColor * (specularHighlight + sparkle * 1.8) * (fresnel * 0.5 + 0.5) * skyVisibility * float(isEyeInWater == 0);
+
+    gl_FragData[0] = vec4(finalColor, finalAlpha);
+
+    vec3 ssrNormal = normalize(mix(flatNormal, N, 0.25));
+    gl_FragData[1] = vec4(ssrNormal * 0.5 + 0.5, float(isEyeInWater == 0));
 }
