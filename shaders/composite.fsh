@@ -143,18 +143,6 @@ void main() {
 
             vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
 
-            #define DEBUG_WATERTOSKY 1  
-
-            #if DEBUG_WATERTOSKY
-                if (eyeInWater > 0.5) {
-                    float rawDepth1_dbg = texture2D(depthtex1, texcoord).r;
-                    bool isWaterToSky_dbg = (rawDepth < 0.9999) && (rawDepth1_dbg >= 0.9999);
-                    gl_FragData[0] = isWaterToSky_dbg ? vec4(1.0, 0.0, 1.0, 1.0) : vec4(0.0);
-                    gl_FragData[1] = vec4(0.0);
-                    return;
-                }
-            #endif
-
             col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir.y);
         } else {
             float sceneDist = linDepth * far;

@@ -37,8 +37,6 @@ void main() {
     float blurredHit = 0.0;
     float totalWeight = 0.0;
 
-    // blur cuma nyampur sesama pixel yang emang air (cek colortex1.a tetangga),
-    // biar gak bocor blur ke pixel darat di tepi kolam/danau
     for (int x = -BLUR_RADIUS; x <= BLUR_RADIUS; x++) {
         for (int y = -BLUR_RADIUS; y <= BLUR_RADIUS; y++) {
             vec2 sampleUV = texcoord + vec2(x, y) * texelSize;
@@ -65,7 +63,6 @@ void main() {
     vec3 N = normalize(normalData.rgb * 2.0 - 1.0);
     vec3 V = normalize(viewPos);
 
-    // fresnel curam: kuat pas grazing angle, nyaris ilang pas natap dari atas
     float fresnel = pow(1.0 - clamp(dot(-V, N), 0.0, 1.0), 5.0);
     fresnel = clamp(fresnel * 0.95 + 0.02, 0.0, 1.0);
 

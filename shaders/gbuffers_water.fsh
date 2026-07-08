@@ -105,7 +105,8 @@ void main() {
         reflectionColor = skyColClamped * 0.45;
     }
 
-    float fresnel = pow(1.0 - clamp(dot(-viewDir, N), 0.0, 1.0), 3.0);
+    float cosView = clamp(dot(-viewDir, N), 0.0, 1.0);
+    float fresnel = pow(1.0 - cosView, 3.0);
     fresnel = clamp(fresnel * 0.85 + 0.15, 0.0, 1.0);
 
     float lmLuma = dot(lm, vec3(0.299, 0.587, 0.114));
@@ -122,6 +123,17 @@ void main() {
 
     float caveAlphaReduce = mix(0.15, 0.0, skyVisibility);
     float finalAlpha = clamp((0.5 - rainStrength * 0.05) + fresnel * 0.40 - caveAlphaReduce, 0.0, 1.0);
+
+    if (isEyeInWater == 1) {
+        vec3 worldRayDir = normalize((gbufferModelViewInverse * vec4(viewDir, 0.0)).xyz);
+        float rayY = worldRayDir.y;
+
+        const float SNELL_COS = 0.6626;
+        const float SNELL_SOFTNESS = 0.12;
+        float withinWindow = smoothstep(SNELL_COS - SNELL_SOFTNESS, SNELL_COS + SNELL_SOFTNESS, rayY);
+        float snellOpacity = 1.0 - withinWindow;
+        finalAlpha = max(finalAlpha, snellOpacity);
+    }
 
     vec3 halfDir = normalize(sunDirView - viewDir);
     float spec = max(dot(N, halfDir), 0.0);

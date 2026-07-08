@@ -59,20 +59,6 @@ vec3 applyClearUnderwater(vec3 col, vec2 uv, float rawDepth, float linDepth, vec
     vec2 wobbledUV = uv + vec2(distortX, distortY);
 
     vec3 baseColor = texture2D(colortex0, wobbledUV).rgb;
-
-    if (isWaterToSky) {
-        const float SNELL_COS = 0.6626;
-        const float SNELL_SOFTNESS = 0.12;
-        float snellMask = smoothstep(SNELL_COS - SNELL_SOFTNESS, SNELL_COS + SNELL_SOFTNESS, rayDirY);
-
-        vec3 lightTint = mix(baseColor, baseColor * vec3(0.75, 0.92, 0.95), 0.1);
-        vec3 clearView = clamp(lightTint, 0.0, 1.0);
-
-        vec3 ambient = computeUnderwaterAmbient(baseColor, wobbledUV, linDepth, worldPos, distortX, distortY);
-
-        return mix(ambient, clearView, snellMask);
-    }
-
     return computeUnderwaterAmbient(baseColor, wobbledUV, linDepth, worldPos, distortX, distortY);
 }
 
