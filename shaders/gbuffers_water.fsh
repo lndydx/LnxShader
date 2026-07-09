@@ -73,7 +73,7 @@ void main() {
 
     if (isRealWater < 0.5) {
         gl_FragData[0] = vec4(baseColor.rgb * lm, baseColor.a);
-        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); // bukan air -> flag SSR = 0
+        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0);
         return;
     }
 
@@ -134,17 +134,6 @@ void main() {
         float snellOpacity = 1.0 - withinWindow;
         finalAlpha = max(finalAlpha, snellOpacity);
     }
-
-    vec3 halfDir = normalize(sunDirView - viewDir);
-    float spec = max(dot(N, halfDir), 0.0);
-
-    float specularHighlight = pow(spec, 50.0);
-    vec3 specularColor = vec3(1.0, 1.0, 0.9) * 1.0;
-    if (sunHeight < NIGHT_HEIGHT_THRESHOLD) {
-        specularColor = vec3(0.35, 0.38, 0.4) * 0.6;
-    }
-    specularColor *= (1.0 - rainStrength * 0.7);
-
 
     gl_FragData[0] = vec4(finalColor, finalAlpha);
 

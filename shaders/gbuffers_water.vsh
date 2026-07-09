@@ -20,7 +20,6 @@ float waveHeight(vec2 pos, float t) {
 }
 
 void main() {
-    // block.10020 = minecraft:water (lihat block.properties)
     isRealWater = (mc_Entity.x == 10020.0) ? 1.0 : 0.0;
 
     vec3 absoluteWorldPos = gl_Vertex.xyz + cameraPosition;
@@ -49,7 +48,6 @@ void main() {
         normal = normalize(vec3((hL - hR) / (2.0 * eps), 1.0, (hD - hU) / (2.0 * eps)));
     }
 
-    // normal datar (tanpa wave) — dipakai fsh buat arah reflection yang stabil
     flatNormal = normalize(gl_NormalMatrix * vec3(0.0, 1.0, 0.0));
     viewNormal = normalize(gl_NormalMatrix * normal);
 

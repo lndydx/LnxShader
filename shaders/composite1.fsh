@@ -23,7 +23,8 @@ varying vec2 texcoord;
 #define SSR_INITIAL_STEP 0.05
 #define SSR_STEP_GROWTH 1.05    
 #define SSR_MAX_DIST 250.0
-#define SSR_THICKNESS 2.71
+#define SSR_THICKNESS_MIN 0.05
+#define SSR_THICKNESS_SCALE 1.5
 #define SSR_REFINE_STEPS 1
 
 float ditherPattern(vec2 uv) {
@@ -35,6 +36,7 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
 
     float jitter = ditherPattern(screenUV * viewWidth) * SSR_INITIAL_STEP;
     vec3 rayPos = viewPos + reflectDir * (SSR_INITIAL_STEP + jitter);
+
     float stepDist = SSR_INITIAL_STEP;
     float travelled = 0.0;
     vec2 hitUV = vec2(-1.0);
@@ -54,7 +56,7 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
 
             if (rayPos.z < sceneViewPos.z) {
                 float depthDiff = sceneViewPos.z - rayPos.z;
-                float dynamicThickness = SSR_THICKNESS * clamp(1.0 + travelled * 0.015, 1.0, 4.0);
+                float dynamicThickness = max(SSR_THICKNESS_MIN, stepDist * SSR_THICKNESS_SCALE);
                 if (depthDiff < dynamicThickness) {
                     hitUV = sampleUV;
                     hit = true;
@@ -107,8 +109,8 @@ void main() {
     float rawDepth = texture2D(depthtex0, texcoord).r;
     vec3 viewPos = getViewPos(texcoord, rawDepth);
     vec3 N = normalize(normalData.rgb * 2.0 - 1.0);
-    vec3 V = normalize(viewPos);
-    vec3 reflectDir = reflect(V, N);
+    vec3 V = normalize(-viewPos);
+    vec3 reflectDir = reflect(-V, N);
 
     bool hit;
     vec3 reflectionColor = raymarchSSR(viewPos, reflectDir, texcoord, hit);
