@@ -99,7 +99,7 @@ vec3 calcSkyColor(vec3 pos) {
     return col;
 }
 
-/* DRAWBUFFERS:0 */
+/* DRAWBUFFERS:01 */
 
 void main() {
     vec3 color;
@@ -112,4 +112,5 @@ void main() {
     }
 
     gl_FragData[0] = vec4(color, 1.0);
+    gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); 
 }

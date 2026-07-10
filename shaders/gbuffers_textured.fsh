@@ -23,6 +23,7 @@ void main() {
 	vec4 color = texture2D(texture, texcoord) * glcolor;
 	vec2 lm = lmcoord;
 
+	#ifdef SHADOWS
 	#if COLORED_SHADOWS == 0
 		//for normal shadows, only consider the closest thing to the sun,
 		//regardless of whether or not it's opaque.
@@ -53,6 +54,7 @@ void main() {
 			}
 		#endif
 	}
+	#endif
 	color *= texture2D(lightmap, lm);
 
 /* DRAWBUFFERS:0 */

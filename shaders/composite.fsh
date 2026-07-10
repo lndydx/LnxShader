@@ -143,7 +143,7 @@ void main() {
 
             vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
 
-            col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir.y);
+            col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir.y, sunDir);
         } else {
             float sceneDist = linDepth * far;
             vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);

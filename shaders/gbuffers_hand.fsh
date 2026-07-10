@@ -22,6 +22,7 @@ const bool shadowtex1Nearest = true;
 void main() {
 	vec4 color = texture2D(texture, texcoord) * glcolor;
 	vec2 lm = lmcoord;
+	#ifdef SHADOWS
 	if (shadowPos.w > 0.0) {
 		//surface is facing towards shadowLightPosition
 		#if COLORED_SHADOWS == 0
@@ -55,6 +56,7 @@ void main() {
 			#endif
 		}
 	}
+	#endif
 	color *= texture2D(lightmap, lm);
 
 /* DRAWBUFFERS:0 */

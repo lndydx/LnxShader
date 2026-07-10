@@ -13,15 +13,19 @@ void main() {
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
 
-	#ifdef EXCLUDE_FOLIAGE
-		if (mc_Entity.x == 10000.0) {
-			gl_Position = vec4(10.0);
-		}
-		else {
-	#endif
-			gl_Position = ftransform();
-			gl_Position.xyz = distort(gl_Position.xyz);
-	#ifdef EXCLUDE_FOLIAGE
-		}
+	#ifndef SHADOWS
+		gl_Position = vec4(10.0); 
+	#else
+		#ifdef EXCLUDE_FOLIAGE
+			if (mc_Entity.x == 10000.0) {
+				gl_Position = vec4(10.0);
+			}
+			else {
+		#endif
+				gl_Position = ftransform();
+				gl_Position.xyz = distort(gl_Position.xyz);
+		#ifdef EXCLUDE_FOLIAGE
+			}
+		#endif
 	#endif
 }

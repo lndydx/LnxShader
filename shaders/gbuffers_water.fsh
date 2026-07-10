@@ -22,9 +22,9 @@ varying float isRealWater;
 #define NIGHT_HEIGHT_THRESHOLD -0.3
 
 vec3 skyColorByWorldTime(int wt, float sunHeight, float rain) {
-    vec3 night   = vec3(0.03, 0.03, 0.045);
+    vec3 night   = vec3(0.28, 0.30, 0.56);
     vec3 sunrise = vec3(0.90, 0.55, 0.40);
-    vec3 day     = vec3(0.55, 0.75, 0.95);
+    vec3 day     = vec3(0.45, 0.70, 0.98);
     vec3 noon    = vec3(0.42, 0.68, 1.00);
     vec3 sunset  = vec3(0.85, 0.45, 0.35);
 
@@ -44,10 +44,10 @@ vec3 skyColorByWorldTime(int wt, float sunHeight, float rain) {
 }
 
 vec3 waterTintByTime(float sunHeight, int wt) {
-    vec3 night   = vec3(0.05, 0.09, 0.11);
-    vec3 sunrise = vec3(0.30, 0.34, 0.32);
-    vec3 day     = vec3(0.10, 0.34, 0.36);
-    vec3 sunset  = vec3(0.26, 0.30, 0.28);
+    vec3 night   = vec3(0.15, 0.28, 0.45);      
+    vec3 sunrise = vec3(0.28, 0.38, 0.40);     
+    vec3 day     = vec3(0.02, 0.55, 0.60);      
+    vec3 sunset  = vec3(0.85, 0.90, 0.35);
 
     bool isMorning = wt < 12000;
     vec3 horizonCol = isMorning ? sunrise : sunset;
@@ -82,7 +82,7 @@ void main() {
     float sunHeight  = sunDirWorld.y;
 
     float baseLuma = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
-    vec3 desatBase = mix(baseColor.rgb, vec3(baseLuma), 0.20);
+    vec3 desatBase = mix(baseColor.rgb, vec3(baseLuma), 0.10);
     vec3 clearTint = desatBase * waterTintByTime(sunHeight, worldTime);
 
     vec3 partialDesat = mix(baseColor.rgb, vec3(baseLuma), 0.5);
@@ -100,14 +100,14 @@ void main() {
         vec3 reflectDir = reflect(viewDir, flatNormal);
         vec3 worldReflectDir = normalize((gbufferModelViewInverse * vec4(reflectDir, 0.0)).xyz);
 
-        reflectionColor = mix(skyColClamped * 0.45, skyColClamped * 0.80, clamp(worldReflectDir.y * 0.5 + 0.5, 0.0, 1.0));
+        reflectionColor = mix(skyColClamped * 0.55, skyColClamped * 1.15, clamp(worldReflectDir.y * 0.5 + 0.5, 0.0, 1.0));
     } else {
         reflectionColor = skyColClamped * 0.45;
     }
 
     float cosView = clamp(dot(-viewDir, N), 0.0, 1.0);
-    float fresnel = pow(1.0 - cosView, 3.0);
-    fresnel = clamp(fresnel * 0.85 + 0.15, 0.0, 1.0);
+    float F0 = 0.02;
+    float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosView, 5.0);
 
     float lmLuma = dot(lm, vec3(0.299, 0.587, 0.114));
     float lmNightFactor = smoothstep(0.0, NIGHT_HEIGHT_THRESHOLD, sunHeight);
@@ -122,7 +122,7 @@ void main() {
     vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, reflectWeight);
 
     float caveAlphaReduce = mix(0.15, 0.0, skyVisibility);
-    float finalAlpha = clamp((0.5 - rainStrength * 0.05) + fresnel * 0.40 - caveAlphaReduce, 0.0, 1.0);
+    float finalAlpha = clamp((0.32 - rainStrength * 0.05) + fresnel * 0.55 - caveAlphaReduce, 0.0, 1.0);
 
     if (isEyeInWater == 1) {
         vec3 worldRayDir = normalize((gbufferModelViewInverse * vec4(viewDir, 0.0)).xyz);
