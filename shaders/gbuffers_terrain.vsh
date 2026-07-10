@@ -19,9 +19,7 @@ varying vec4 shadowPos;
 
 #include "/distort.glsl"
 
-// ============================================================
-// WIND CONFIG (dari oldlnx, block ID disesuaikan ke block.properties baru)
-// ============================================================
+// WIND CONFIG 
 
 #define WAVE_LEAVES_ID   10010
 #define WAVE_GRASS_ID    10011
@@ -63,10 +61,7 @@ void main() {
     lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
     glcolor  = gl_Color;
 
-    // ============================================================
-    // WIND ANIMATION (dari oldlnx) — dihitung dulu sebelum shadow,
-    // supaya vertex yang kena angin juga ikut cast shadow yang benar.
-    // ============================================================
+    // WIND ANIMATION 
     vec4 position = gl_Vertex;
     vec3 worldPos = position.xyz + cameraPosition;
     vec3 blockPos = floor(worldPos + 0.001);
@@ -104,9 +99,7 @@ void main() {
         position.xyz += getWindOffset(worldPos, topMask, WIND_DRIPLEAF_STRENGTH, phase, freqMul);
     }
 
-    // ============================================================
     // SHADOW 
-    // ============================================================
     float lightDot = dot(normalize(shadowLightPosition), normalize(gl_NormalMatrix * gl_Normal));
     #ifdef EXCLUDE_FOLIAGE
         float id = mc_Entity.x;

@@ -131,7 +131,7 @@ void main() {
         const float SNELL_COS = 0.6626;
         const float SNELL_SOFTNESS = 0.12;
         float withinWindow = smoothstep(SNELL_COS - SNELL_SOFTNESS, SNELL_COS + SNELL_SOFTNESS, rayY);
-        float snellOpacity = 1.0 - withinWindow;
+        float snellOpacity = (1.0 - withinWindow) * 0.55;
         finalAlpha = max(finalAlpha, snellOpacity);
     }
 

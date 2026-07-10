@@ -5,6 +5,8 @@ uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D lightmap;
+uniform sampler2D shadowtex0;
+uniform sampler2D shadowtex1;
 
 uniform float near;
 uniform float far;
@@ -22,6 +24,12 @@ uniform float rainStrength;
 uniform int biome_precipitation;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
+uniform mat4 shadowModelView;
+uniform mat4 shadowProjection;
+
+// only used here for shadowMapResolution / distort() / computeBias(),
+// since those need to be visible in this fragment stage too.
+#include "/distort.glsl"
 
 varying vec2 texcoord;
 varying float eyeInWater;
@@ -41,6 +49,10 @@ varying float eyeInWater;
 #define CLOUD_SHADOW_OFFSET 6.0
 #define CLOUD_SHADOW_STRENGTH 0.3
 #define CLOUD_RIM_STRENGTH 0.25
+
+#define GODRAY_STEPS 12
+#define GODRAY_MAX_DISTANCE 40.0
+#define GODRAY_INTENSITY 1.5
 
 #define AERIAL_FOG_DENSITY 0.0001
 #define AERIAL_FOG_START 50.0
@@ -143,7 +155,7 @@ void main() {
 
             vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
 
-            col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir.y, sunDir);
+            col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir, sunDir);
         } else {
             float sceneDist = linDepth * far;
             vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);

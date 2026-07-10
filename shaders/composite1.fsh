@@ -20,12 +20,12 @@ varying vec2 texcoord;
 #include "/lib/composite_common.glsl"
 
 #define SSR_MAX_STEPS 192
-#define SSR_INITIAL_STEP 0.05
-#define SSR_STEP_GROWTH 1.08  
+#define SSR_INITIAL_STEP 0.08
+#define SSR_STEP_GROWTH 1.10 
 #define SSR_MAX_DIST 250.0
-#define SSR_THICKNESS_MIN 0.50
-#define SSR_THICKNESS_SCALE 2.7
-#define SSR_REFINE_STEPS 1
+#define SSR_THICKNESS_MIN 0.6
+#define SSR_THICKNESS_SCALE 2.80
+#define SSR_REFINE_STEPS 8
 
 float ditherPattern(vec2 uv) {
     return fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
