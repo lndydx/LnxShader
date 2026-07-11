@@ -1,21 +1,64 @@
 #ifndef COMPOSITE_UNDERWATER_GLSL
 #define COMPOSITE_UNDERWATER_GLSL
 
+// SIMPLEX NOISE 2D
+vec2 mod289v2(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec3 mod289v3(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+vec3 permute(vec3 x) { return mod289v3(((x*34.0)+1.0)*x); }
+
+float snoise(vec2 v) {
+    const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                       -0.577350269189626, 0.024390243902439);
+    vec2 i  = floor(v + dot(v, C.yy));
+    vec2 x0 = v - i + dot(i, C.xx);
+    vec2 i1;
+    i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec4 x12 = x0.xyxy + C.xxzz;
+    x12.xy -= i1;
+    i = mod289v2(i);
+    vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0))
+                    + i.x + vec3(0.0, i1.x, 1.0));
+    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
+                            dot(x12.zw,x12.zw)), 0.0);
+    m = m*m;
+    m = m*m;
+    vec3 x = 2.0 * fract(p * C.www) - 1.0;
+    vec3 h = abs(x) - 0.5;
+    vec3 ox = floor(x + 0.5);
+    vec3 a0 = x - ox;
+    m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+    vec3 g;
+    g.x  = a0.x  * x0.x  + h.x  * x0.y;
+    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+    return 130.0 * dot(m, g);
+}
+
+float water_caustics(vec2 p) {
+    float n = snoise(p);
+    p -= vec2(n, n * 0.7) * 0.07;
+    p *= 1.62;
+    n = snoise(p);
+    p -= vec2(n, n * 0.7) * 0.07;
+    n = snoise(p);
+    p -= vec2(n, n * 0.7) * 0.07;
+    n = snoise(p);
+    return n;
+}
+
+// AMBIENT
 vec3 computeUnderwaterAmbient(vec3 baseColor, vec2 wobbledUV, float linDepth, vec3 worldPos, float distortX, float distortY, vec3 sunDirWorld, out float ambientIntensityOut, out float depthFromSurfaceOut) {
     float waterSurfaceY = 62.0;
     float depthFromSurface = max(0.0, waterSurfaceY - worldPos.y);
     float viewDistance = linDepth * far;
 
-    // WATER ABSORPTION 
     vec3 absorptionCoeff = vec3(0.035, 0.012, 0.006);
     vec3 transmittance = exp(-absorptionCoeff * viewDistance);
     vec3 absorbedColor = baseColor * transmittance;
 
-    vec3 scatterColor = vec3(0.03, 0.32, 0.42);
+    vec3 scatterColor = vec3(0.05, 0.36, 0.48);
     vec3 scatterCoeff = vec3(0.02, 0.018, 0.014);
     vec3 inscatter = scatterColor * (1.0 - exp(-scatterCoeff * viewDistance));
 
-    // AMBIENT LIGHT 
     float verticalAtten = exp(-0.015 * depthFromSurface);
     float skyLight = texture2D(lightmap, wobbledUV).g;
     float sunHeightFactor = smoothstep(-0.05, 0.25, sunDirWorld.y);
@@ -23,7 +66,6 @@ vec3 computeUnderwaterAmbient(vec3 baseColor, vec2 wobbledUV, float linDepth, ve
 
     vec3 litColor = (absorbedColor + inscatter) * ambientIntensity * 1.45;
 
-    // FOG 
     vec3 deepFogColor = vec3(0.02, 0.14, 0.20) * ambientIntensity;
     float fogFactor = smoothstep(far * 0.55, far * 1.10, viewDistance);
     vec3 finalColor = mix(litColor, deepFogColor, fogFactor);
@@ -33,75 +75,47 @@ vec3 computeUnderwaterAmbient(vec3 baseColor, vec2 wobbledUV, float linDepth, ve
     return max(finalColor, 0.0);
 }
 
-float sampleGodrayShadow(vec3 playerPos) {
-    vec4 sPos = shadowProjection * (shadowModelView * vec4(playerPos, 1.0));
-    sPos.xyz = distort(sPos.xyz);
-    sPos.xyz = sPos.xyz * 0.5 + 0.5;
-
-    if (sPos.x < 0.0 || sPos.x > 1.0 || sPos.y < 0.0 || sPos.y > 1.0 || sPos.z > 1.0) return 0.0;
-
-    float bias = 0.0015;
-    return step(sPos.z - bias, texture2D(shadowtex1, sPos.xy).r);
-}
-
+// GODRAY
 vec3 computeGodRays(vec3 worldPos, vec2 wobbledUV, vec3 rayDir, float depthFromSurface, float viewDistance, vec3 sunDirWorld, float ambientIntensity) {
-    if (sunDirWorld.y < 0.0) return vec3(0.0);
-
-    float marchDist = min(viewDistance, GODRAY_MAX_DISTANCE);
-    if (marchDist <= 0.05) return vec3(0.0);
-
-    float stepLen = marchDist / float(GODRAY_STEPS);
-    vec3 rayStep = rayDir * stepLen;
-
-    float dither = hash12(wobbledUV * vec2(viewWidth, viewHeight) + fract(frameTimeCounter));
-    vec3 samplePos = rayDir * (stepLen * dither); 
-
-    float accum = 0.0;
-    for (int i = 0; i < GODRAY_STEPS; i++) {
-        accum += sampleGodrayShadow(samplePos);
-        samplePos += rayStep;
-    }
-    accum /= float(GODRAY_STEPS);
-
-    float VoS = max(dot(rayDir, sunDirWorld), 0.0);
-    float phase = 0.2 + pow(VoS, 6.0) * 3.0;
-
-    float t = frameTimeCounter;
-    float shimmer = 0.85 + 0.15 * sin(dot(worldPos.xz, vec2(0.15, 0.11)) + t * 0.6);
-
-    float shaft = accum * phase * shimmer;
-
-    float skyLight = texture2D(lightmap, wobbledUV).g;
-    shaft *= mix(0.2, 1.0, skyLight);
-    shaft *= smoothstep(0.0, 0.15, sunDirWorld.y);
-    shaft *= ambientIntensity;
-    shaft *= smoothstep(0.0, GODRAY_MAX_DISTANCE * 0.3, marchDist);
-
-    vec3 rayColor = vec3(0.85, 0.95, 1.0);
-    return rayColor * shaft * GODRAY_INTENSITY;
+    return vec3(0.0);
 }
 
-// CAUSTICS 
-vec3 computeCaustics(vec3 worldPos, float depthFromSurface, float viewDistance, float ambientIntensity, float skyLight) {
-    float t = frameTimeCounter * 0.5;
-    vec2 p = worldPos.xz * 0.35;
-
-    vec2 p1 = p + vec2(t * 0.6, t * 0.4);
-    vec2 p2 = p * 1.7 - vec2(t * 0.5, t * 0.7);
-
-    float c1 = sin(p1.x) + sin(p1.y) + sin((p1.x + p1.y) * 0.6);
-    float c2 = sin(p2.x * 1.3) + sin(p2.y * 1.3) + sin((p2.x - p2.y) * 0.8);
-
-    float caustic = c1 * c2;
-    caustic = pow(clamp(caustic * 0.15 + 0.5, 0.0, 1.0), 5.0); 
-
-    float depthFade = exp(-depthFromSurface * 0.06); 
-    float distanceFade = 1.0 - smoothstep(14.0, 30.0, viewDistance);
-
-    caustic *= depthFade * distanceFade * skyLight * ambientIntensity;
-
-    vec3 causticColor = vec3(0.85, 1.0, 0.92);
-    return causticColor * caustic * 0.45;
+// CAUSTIC RAYS 
+vec3 computeCaustics(vec3 worldPos, float depthFromSurface, float viewDistance, float skyLight, vec3 sunDirWorld) {
+    if (sunDirWorld.y < 0.0) return vec3(0.0);
+    if (skyLight < 0.05) return vec3(0.0);
+    
+    float surfaceFade = smoothstep(0.0, 1.5, depthFromSurface);
+    if (surfaceFade < 0.001) return vec3(0.0);
+    
+    float layerIntensity;
+    if (depthFromSurface < 10.0) {
+        layerIntensity = 1.0;
+    } else if (depthFromSurface < 20.0) {
+        layerIntensity = 1.0 - smoothstep(10.0, 20.0, depthFromSurface);
+        layerIntensity *= 0.4;
+    } else {
+        return vec3(0.0);
+    }
+    
+    if (layerIntensity < 0.001) return vec3(0.0);
+    
+    float t = frameTimeCounter * 0.75;
+    vec2 p = worldPos.xz * 0.09;
+    float w = water_caustics(p * 3.0 + vec2(t * 0.2, t * 0.15));
+    
+    float intensity = exp(w * 2.8 - 1.0);
+    intensity = intensity * layerIntensity * surfaceFade;
+    
+    float sunHeight = smoothstep(0.0, 0.1, sunDirWorld.y);
+    float distFade = 1.0 - smoothstep(10.0, 120.0, viewDistance);
+    
+    intensity *= sunHeight * distFade * skyLight;
+    
+    if (intensity < 0.001) return vec3(0.0);
+    
+    vec3 causticColor = vec3(0.82, 0.95, 1.0);
+    return causticColor * intensity * 0.25;
 }
 
 vec3 applyClearUnderwater(vec3 col, vec2 uv, float rawDepth, float linDepth, vec3 worldPos, bool isWaterToSky, vec3 rayDir, vec3 sunDirWorld) {
@@ -122,7 +136,7 @@ vec3 applyClearUnderwater(vec3 col, vec2 uv, float rawDepth, float linDepth, vec
     vec3 rays = computeGodRays(worldPos, wobbledUV, rayDir, depthFromSurface, viewDistance, sunDirWorld, ambientIntensity);
 
     float skyLight = texture2D(lightmap, wobbledUV).g;
-    vec3 caustics = computeCaustics(worldPos, depthFromSurface, viewDistance, ambientIntensity, skyLight);
+    vec3 caustics = computeCaustics(worldPos, depthFromSurface, viewDistance, skyLight, sunDirWorld);
 
     return ambientColor + rays + caustics;
 }

@@ -26,9 +26,8 @@ uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowModelView;
 uniform mat4 shadowProjection;
+uniform mat4 gbufferModelView;
 
-// only used here for shadowMapResolution / distort() / computeBias(),
-// since those need to be visible in this fragment stage too.
 #include "/distort.glsl"
 
 varying vec2 texcoord;
@@ -50,9 +49,7 @@ varying float eyeInWater;
 #define CLOUD_SHADOW_STRENGTH 0.3
 #define CLOUD_RIM_STRENGTH 0.25
 
-#define GODRAY_STEPS 12
-#define GODRAY_MAX_DISTANCE 40.0
-#define GODRAY_INTENSITY 1.5
+#define DEBUG_GODRAYS 1
 
 #define AERIAL_FOG_DENSITY 0.0001
 #define AERIAL_FOG_START 50.0
@@ -64,19 +61,19 @@ varying float eyeInWater;
 
 #define TARGET_LUMA 0.12
 #define EXPOSURE_MIN 0.9
-#define EXPOSURE_MAX 1.3   
+#define EXPOSURE_MAX 1.3
 #define EXPOSURE_ADAPT_RATE 1.0
 
-#define BLOOM_THRESHOLD 0.95  
+#define BLOOM_THRESHOLD 0.95
 #define BLOOM_KNEE 0.35
-#define BLOOM_INTENSITY 0.4   
+#define BLOOM_INTENSITY 0.4
 #define BLOOM_CORE_BOOST 1.2
 #define BLOOM_RADIUS_PX 0.75
 #define BLOOM_RADIUS_PX_WIDE 2.0
 
-#define SATURATION 1.4   
+#define SATURATION 1.4
 #define VIBRANCE 0.35
-#define CONTRAST 0.15    
+#define CONTRAST 0.15
 #define SHARPEN_STRENGTH 0.1
 
 #define DAY_HEIGHT_THRESHOLD 0.5
@@ -102,11 +99,11 @@ varying float eyeInWater;
 #include "/lib/composite_clouds.glsl"
 #include "/lib/composite_underwater.glsl"
 #include "/lib/composite_post.glsl"
+#include "/lib/godrays.glsl"
 
-// SSAO independen dari shadow map (cuma pakai depth buffer)
+// SSAO
 float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     float occlusion = 0.0;
-
     float angle = hash12(uv * viewWidth) * 6.2831853;
     float sa = sin(angle);
     float ca = cos(angle);
@@ -115,24 +112,18 @@ float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     for (int i = 0; i < AO_SAMPLES; i++) {
         float a = (float(i) / float(AO_SAMPLES)) * 6.2831853;
         vec2 dir = rot * vec2(cos(a), sin(a));
-
         float screenRadius = AO_RADIUS * (1.0 / max(-viewPos.z, 1.0)) * 0.05;
         vec2 sampleUV = uv + dir * screenRadius;
-
         float sampleDepthRaw = texture2D(depthtex0, sampleUV).r;
         if (sampleDepthRaw >= 0.9999) continue;
-
         vec3 sampleViewPos = getViewPos(sampleUV, sampleDepthRaw);
         vec3 diff = sampleViewPos - viewPos;
         float dist = length(diff);
         vec3 dirToSample = diff / max(dist, 0.0001);
-
         float rangeCheck = smoothstep(0.0, 1.0, AO_RADIUS / max(dist, 0.0001));
         float NdotD = max(dot(normal, dirToSample) - AO_BIAS, 0.0);
-
         occlusion += NdotD * rangeCheck;
     }
-
     occlusion /= float(AO_SAMPLES);
     return 1.0 - clamp(occlusion * AO_STRENGTH, 0.0, 1.0);
 }
@@ -145,21 +136,20 @@ void main() {
     float linDepth = linearizeDepth(rawDepth);
     bool isSky     = rawDepth >= 0.9999;
 
-        vec3 sunDir = getSunDirWorld();
-        vec3 viewDirVS = getViewPos(texcoord, 0.0);
-        vec3 rayDir = normalize((gbufferModelViewInverse * vec4(viewDirVS, 0.0)).xyz);
+    vec3 sunDir = getSunDirWorld();
+    vec3 viewDirVS = getViewPos(texcoord, 0.0);
+    vec3 rayDir = normalize((gbufferModelViewInverse * vec4(viewDirVS, 0.0)).xyz);
 
-        if (eyeInWater > 0.5) {
-            float rawDepth1 = texture2D(depthtex1, texcoord).r;
-            bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
-
-            vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
-
-            col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir, sunDir);
-        } else {
-            float sceneDist = linDepth * far;
-            vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);
-            col = mix(col, clouds.rgb, clouds.a);
+    if (eyeInWater > 0.5) {
+        float rawDepth1 = texture2D(depthtex1, texcoord).r;
+        bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
+        vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
+        vec3 rayDir = normalize(worldPos - cameraPosition);
+        col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir, sunDir);
+    } else {
+        float sceneDist = linDepth * far;
+        vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);
+        col = mix(col, clouds.rgb, clouds.a);
 
         if (!isSky) {
             vec3 viewPos = getViewPos(texcoord, rawDepth);
@@ -180,9 +170,12 @@ void main() {
                 vec3 normal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
                 ao = getSSAO(texcoord, viewPos, normal);
             }
-
             col *= ao;
         }
+
+        // GOD RAYS 
+        vec3 godrays = computeGodRays(texcoord, rawDepth, sunDir);
+        col += godrays;
 
         col = applyWeatherFog(col, linDepth);
         col = applyAerialFog(col, linDepth, isSky, rayDir, sunDir);

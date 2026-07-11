@@ -31,11 +31,12 @@ float cloudFbm(vec2 p) {
     return value / ampSum;
 }
 
+// --- REVISED: vibrant, matching Complementary ---
 vec3 cloudColorByTime(vec3 sunDir, int wt, float rain) {
     vec3 night   = vec3(0.10, 0.11, 0.17);
-    vec3 sunrise = vec3(1.00, 0.72, 0.52);
-    vec3 day     = vec3(1.00, 1.00, 1.00);
-    vec3 sunset  = vec3(1.00, 0.62, 0.42);
+    vec3 sunrise = vec3(1.00, 0.62, 0.45);  // warm peach-pink
+    vec3 day     = vec3(0.96, 0.98, 1.00);  // cool white
+    vec3 sunset  = vec3(1.00, 0.55, 0.32);  // deep orange
 
     float h = sunDir.y;
     bool isMorning = wt < 12000;

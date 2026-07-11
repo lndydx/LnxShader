@@ -19,7 +19,7 @@ const float sunPathRotation = 30.0;
 
 #define DAY_HEIGHT_THRESHOLD 0.5
 #define NIGHT_HEIGHT_THRESHOLD -0.3
-#define SKY_ZENITH_END  0.55
+#define SKY_ZENITH_BIAS 0.65
 
 struct SkyPalette {
     vec3 zenith;
@@ -28,13 +28,15 @@ struct SkyPalette {
 };
 
 SkyPalette dawnSky() {
-    return SkyPalette(vec3(0.243, 0.215, 0.282), vec3(0.772, 0.611, 0.572), vec3(0.635, 0.776, 0.909));
+    return SkyPalette(vec3(0.176, 0.235, 0.478), vec3(0.545, 0.400, 0.522), vec3(0.965, 0.588, 0.345));
 }
 SkyPalette daySky() {
-    return SkyPalette(vec3(0.360, 0.529, 0.717), vec3(0.603, 0.756, 0.898), vec3(0.741, 0.803, 0.862));
+    return SkyPalette(vec3(0.235, 0.408, 0.886), vec3(0.227, 0.510, 0.714), vec3(0.580, 0.808, 0.898));
 }
 SkyPalette duskSky() {
-    return SkyPalette(vec3(0.286, 0.247, 0.317), vec3(0.666, 0.552, 0.525), vec3(0.810, 0.603, 0.164));
+    return SkyPalette(        vec3(0.043, 0.055, 0.125),  // zenith: biru dongker pekat, hampir malam
+        vec3(0.161, 0.196, 0.325),  // mid: biru abu-abu lebih terang, transisi tenang
+        vec3(0.886, 0.831, 0.647) );
 }
 SkyPalette nightSky() {
     return SkyPalette(vec3(0.02, 0.02, 0.08), vec3(0.04, 0.04, 0.10), vec3(0.06, 0.06, 0.15));
@@ -84,10 +86,13 @@ vec3 calcSkyColor(vec3 pos) {
 
     vec3 sunDir = normalize(sunPosition);
     float sunHeight = dot(sunDir, gbufferModelView[1].xyz);
-
     SkyPalette pal = getSkyPalette(worldTime, sunHeight);
 
-    vec3 col = mix(pal.mid, pal.zenith, smoothstep(0.0, SKY_ZENITH_END, upDot));
+    float t = clamp(upDot, 0.0, 1.0);
+    float easedT = smoothstep(0.0, 1.0, t);
+    easedT = pow(easedT, SKY_ZENITH_BIAS);
+
+    vec3 col = mix(mix(pal.horizon, pal.mid, easedT), mix(pal.mid, pal.zenith, easedT), easedT);
     col = adjustSkyLook(col);
     col = applyRainSky(col, sunHeight, rainStrength);
 

@@ -93,8 +93,6 @@ float decodeExposure(float e01) {
     return e01 * (EXPOSURE_MAX - EXPOSURE_MIN) + EXPOSURE_MIN;
 }
 
-// texelFetch gak ada di GLSL 120, jadi exposure history dibaca lewat texture2D
-// yang diarahkan tepat ke tengah texel (0,0).
 float computeExposure() {
     float avgLuma = max(sampleAverageLuminance(), 0.0001);
     float targetExposure = clamp(TARGET_LUMA / avgLuma, EXPOSURE_MIN, EXPOSURE_MAX);

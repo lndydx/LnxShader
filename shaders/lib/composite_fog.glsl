@@ -10,10 +10,11 @@ vec3 applyRenderDistanceFog(vec3 col, float linDepth, bool isSky) {
 }
 
 vec3 aerialFogColorByTime(vec3 sunDir, int wt, float rain) {
+    // --- REVISED: vibrant, matching Complementary ---
     vec3 night = vec3(0.06, 0.06, 0.16);
-    vec3 dawn  = vec3(1.0000, 0.9176, 0.8039);
-    vec3 day   = vec3(0.75, 0.85, 0.95);
-    vec3 dusk  = vec3(0.9373, 0.8039, 0.7216);
+    vec3 dawn  = vec3(1.00, 0.72, 0.55);  // warm peach
+    vec3 day   = vec3(0.76, 0.86, 0.96);  // light cyan-blue
+    vec3 dusk  = vec3(0.96, 0.68, 0.48);  // warm coral
 
     float h = sunDir.y;
     bool isMorning = wt < 12000;
@@ -26,7 +27,7 @@ vec3 aerialFogColorByTime(vec3 sunDir, int wt, float rain) {
     col = mix(col, night, nightFactor);
 
     bool isNight = h < NIGHT_HEIGHT_THRESHOLD;
-    vec3 stormCol = isNight ? vec3(0.04, 0.04, 0.07) : vec3(0.45, 0.46, 0.48);
+    vec3 stormCol = isNight ? vec3(0.04, 0.04, 0.07) : vec3(0.42, 0.44, 0.48);
     return mix(col, stormCol, rain * 0.7);
 }
 
