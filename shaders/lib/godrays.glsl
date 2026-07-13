@@ -1,10 +1,7 @@
 #ifndef GODRAYS_GLSL
 #define GODRAYS_GLSL
 
-// ============================================================
 // CONFIGURATION
-// ============================================================
-
 #define GODRAY_ENABLED 1
 #define GODRAY_SAMPLES 40
 #define GODRAY_MAX_DIST 250.0

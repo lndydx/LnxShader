@@ -8,8 +8,12 @@ uniform mat4 gbufferModelViewInverse;
 uniform vec3 sunPosition;
 uniform int worldTime;
 uniform float rainStrength;
+uniform float frameTimeCounter;
 
 varying vec4 starData;
+
+#include "/lib/night_sky.glsl"
+#include "/lib/constellations.glsl"
 
 const float sunPathRotation = 30.0;
 
@@ -72,8 +76,8 @@ SkyPalette sunsetSky() {
 SkyPalette midnightSky() {    
     return SkyPalette(
         vec3(0.043, 0.047, 0.063),
-        vec3(0.071, 0.090, 0.110),
-        vec3(0.000, 0.082, 0.141)
+        vec3(0.075, 0.098, 0.125),
+        vec3(0.110, 0.173, 0.251)
     );
 }
 
@@ -173,6 +177,8 @@ vec3 calcSkyColor(vec3 viewDir) {
     vec3 sunCol = getSunColor(sunHeight, rainStrength);
     
     col += sunCol * (disc * discInt + glow * 0.3) * sunFade;
+    col += renderNightSky(worldDir, frameTimeCounter, worldTime, rainStrength);
+    col += renderConstellations(worldDir, frameTimeCounter, worldTime, rainStrength);
 
     return col;
 }

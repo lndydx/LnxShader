@@ -76,7 +76,17 @@ vec3 cloudAmbientColor(vec3 sunDir, int wt_, float rain) {
     return mix(amb, stormAmb, rain * 0.7);
 }
 
+float cloudNightVisibility(int wt_) {
+    float wt = float(wt_);
+    float fadeOut = 1.0 - smoothstep(15800.0, 16400.0, wt);
+    float fadeIn  = smoothstep(20800.0, 21400.0, wt);
+    return clamp(fadeOut + fadeIn, 0.0, 1.0);
+}
+
 vec4 renderClouds(vec3 rayDir, vec3 rayOrigin, float sceneDist, bool isSky, vec3 sunDir) {
+    float nightVisibility = cloudNightVisibility(worldTime);
+    if (nightVisibility <= 0.001) return vec4(0.0);
+
     float grazingFade = smoothstep(0.0, 0.12, abs(rayDir.y)); 
     if (grazingFade <= 0.0) return vec4(0.0);
     if (abs(rayDir.y) < 0.0001) return vec4(0.0);
@@ -103,7 +113,7 @@ vec4 renderClouds(vec3 rayDir, vec3 rayOrigin, float sceneDist, bool isSky, vec3
     density = pow(density, 0.55);
 
     float horizonFade = clamp(1.0 - (t / CLOUD_MAX_DISTANCE), 0.0, 1.0);
-    density *= horizonFade * grazingFade * occlusionFade;
+    density *= horizonFade * grazingFade * occlusionFade * nightVisibility;
 
     vec2 shadowSamplePos = shapeSamplePos + sunDir.xz * CLOUD_SHADOW_OFFSET * CLOUD_SCALE;
     float shadowShape = cloudFbm(shadowSamplePos);
