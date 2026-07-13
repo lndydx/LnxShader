@@ -4,6 +4,7 @@ uniform float viewHeight;
 uniform float viewWidth;
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferProjectionInverse;
+uniform mat4 gbufferModelViewInverse;
 uniform vec3 sunPosition;
 uniform int worldTime;
 uniform float rainStrength;
@@ -12,49 +13,94 @@ varying vec4 starData;
 
 const float sunPathRotation = 30.0;
 
-#define SKY_SATURATION 1.15
-#define SKY_CONTRAST   1.2
-#define SUN_GLOW_INTENSITY 0.10
-#define SUN_DISC_SIZE 50.0
+#define SKY_SATURATION 1.10
+#define SKY_CONTRAST   1.12
+#define SUN_GLOW_INTENSITY 0.28
+#define SUN_DISC_SIZE 34.0
+#define MOON_GLOW_INTENSITY 0.10
+#define MOON_DISC_SIZE 42.0
 
-#define DAY_HEIGHT_THRESHOLD 0.5
-#define NIGHT_HEIGHT_THRESHOLD -0.3
-#define SKY_ZENITH_BIAS 0.65
+#define DAY_HEIGHT_THRESHOLD 0.40
+#define NIGHT_HEIGHT_THRESHOLD -0.30
 
 struct SkyPalette {
-    vec3 zenith;
-    vec3 mid;
-    vec3 horizon;
+    vec3 zenith;   
+    vec3 mid;     
+    vec3 horizon; 
 };
 
-SkyPalette dawnSky() {
-    return SkyPalette(vec3(0.176, 0.235, 0.478), vec3(0.545, 0.400, 0.522), vec3(0.965, 0.588, 0.345));
-}
-SkyPalette daySky() {
-    return SkyPalette(vec3(0.235, 0.408, 0.886), vec3(0.227, 0.510, 0.714), vec3(0.580, 0.808, 0.898));
-}
-SkyPalette duskSky() {
-    return SkyPalette(        vec3(0.043, 0.055, 0.125),  // zenith: biru dongker pekat, hampir malam
-        vec3(0.161, 0.196, 0.325),  // mid: biru abu-abu lebih terang, transisi tenang
-        vec3(0.886, 0.831, 0.647) );
-}
-SkyPalette nightSky() {
-    return SkyPalette(vec3(0.02, 0.02, 0.08), vec3(0.04, 0.04, 0.10), vec3(0.06, 0.06, 0.15));
-}
-
 SkyPalette mixPalette(SkyPalette a, SkyPalette b, float t) {
-    return SkyPalette(mix(a.zenith, b.zenith, t), mix(a.mid, b.mid, t), mix(a.horizon, b.horizon, t));
+    return SkyPalette(
+        mix(a.zenith,  b.zenith,  t),
+        mix(a.mid,     b.mid,     t),
+        mix(a.horizon, b.horizon, t)
+    );
 }
 
-SkyPalette getSkyPalette(int wt, float sunHeight) {
-    bool isMorning = wt < 12000;
-    SkyPalette horizonPal = isMorning ? dawnSky() : duskSky();
+SkyPalette dawnSky() {    
+    return SkyPalette(
+        vec3(0.075, 0.102, 0.145),
+        vec3(0.133, 0.192, 0.247),
+        vec3(0.796, 0.702, 0.502)
+    );
+}
 
-    float dayFactor   = smoothstep(0.0, DAY_HEIGHT_THRESHOLD, sunHeight);
-    float nightFactor = smoothstep(0.0, NIGHT_HEIGHT_THRESHOLD, sunHeight);
+SkyPalette sunriseSky() {  
+    return SkyPalette(
+        vec3(0.149, 0.204, 0.290),
+        vec3(0.161, 0.231, 0.298),
+        vec3(0.733, 0.686, 0.565)
+    );
+}
 
-    SkyPalette pal = mixPalette(horizonPal, daySky(), dayFactor);
-    pal = mixPalette(pal, nightSky(), nightFactor);
+SkyPalette daySky() {        
+    return SkyPalette(
+        vec3(0.12, 0.32, 0.72),
+        vec3(0.30, 0.55, 0.90),
+        vec3(0.65, 0.82, 0.95)
+    );
+}
+
+SkyPalette sunsetSky() { 
+    return SkyPalette(
+        vec3(0.059, 0.125, 0.153),
+        vec3(0.251, 0.349, 0.467),
+        vec3(0.808, 0.655, 0.333)
+    );
+}
+
+SkyPalette midnightSky() {    
+    return SkyPalette(
+        vec3(0.043, 0.047, 0.063),
+        vec3(0.071, 0.090, 0.110),
+        vec3(0.000, 0.082, 0.141)
+    );
+}
+
+#define NIGHT_SUNSET_MIX 0.35  
+#define NIGHT_BRIGHTNESS 1.30  
+
+SkyPalette nightSky() {       
+    SkyPalette pal = mixPalette(midnightSky(), sunsetSky(), NIGHT_SUNSET_MIX);
+    pal.zenith  *= NIGHT_BRIGHTNESS;
+    pal.mid     *= NIGHT_BRIGHTNESS;
+    pal.horizon *= NIGHT_BRIGHTNESS * 0.9;
+    return pal;
+}
+
+#define DAY_HOLD_END 11000.0    
+
+SkyPalette getSkyPalette(int wtInt) {
+    float wt = float(wtInt);
+
+    SkyPalette pal = sunriseSky();
+    pal = mixPalette(pal, daySky(),      smoothstep(0.0,          1000.0, wt)); 
+    pal = mixPalette(pal, sunsetSky(),   smoothstep(DAY_HOLD_END, 12000.0, wt)); 
+    pal = mixPalette(pal, nightSky(),    smoothstep(12000.0,     13000.0, wt)); 
+    pal = mixPalette(pal, midnightSky(), smoothstep(13000.0,     13500.0, wt)); 
+    pal = mixPalette(pal, dawnSky(),     smoothstep(22500.0,     23200.0, wt)); 
+    pal = mixPalette(pal, sunriseSky(),  smoothstep(23000.0,     23800.0, wt)); 
+
     return pal;
 }
 
@@ -72,34 +118,61 @@ vec3 applyRainSky(vec3 col, float sunHeight, float rain) {
     vec3 desat = mix(col, vec3(luma), rain * 0.85);
 
     bool isNight = sunHeight < NIGHT_HEIGHT_THRESHOLD;
-    vec3 stormTint = isNight ? vec3(0.04, 0.04, 0.06) : vec3(0.40, 0.41, 0.44);
+    vec3 stormTint = isNight ? vec3(0.03, 0.03, 0.05) : vec3(0.38, 0.40, 0.43);
     vec3 col2 = mix(desat, stormTint, rain * 0.75);
 
-    float darkenAmount = isNight ? 0.5 : 0.2;
+    float darkenAmount = isNight ? 0.55 : 0.25;
     col2 *= mix(1.0, 1.0 - darkenAmount, rain);
 
     return col2;
 }
 
-vec3 calcSkyColor(vec3 pos) {
-    float upDot = dot(pos, gbufferModelView[1].xyz);
+vec3 getSunColor(float sunHeight, float rain) {
+    bool isNight = sunHeight < NIGHT_HEIGHT_THRESHOLD;
+    if (isNight) {
+        vec3 moonCol = vec3(0.75, 0.82, 1.0);
+        return moonCol * (1.0 - rain * 0.5);
+    }
+    
+    float horizonProx = 1.0 - smoothstep(0.0, 0.35, sunHeight);
+    vec3 sunsetCol = vec3(1.0, 0.55, 0.15);
+    vec3 dayCol = vec3(1.0, 0.92, 0.78);
+    vec3 sunCol = mix(dayCol, sunsetCol, horizonProx);
+    return sunCol * (1.0 - rain * 0.4);
+}
 
-    vec3 sunDir = normalize(sunPosition);
-    float sunHeight = dot(sunDir, gbufferModelView[1].xyz);
-    SkyPalette pal = getSkyPalette(worldTime, sunHeight);
+vec3 calcSkyColor(vec3 viewDir) {
+    vec3 worldDir = normalize((gbufferModelViewInverse * vec4(viewDir, 0.0)).xyz);
+    float upDot = worldDir.y;
 
-    float t = clamp(upDot, 0.0, 1.0);
-    float easedT = smoothstep(0.0, 1.0, t);
-    easedT = pow(easedT, SKY_ZENITH_BIAS);
+    vec3 sunDirWorld = normalize((gbufferModelViewInverse * vec4(sunPosition, 0.0)).xyz);
+    float sunHeight = sunDirWorld.y;
 
-    vec3 col = mix(mix(pal.horizon, pal.mid, easedT), mix(pal.mid, pal.zenith, easedT), easedT);
+    SkyPalette pal = getSkyPalette(worldTime);
+
+    float t = clamp(upDot * 0.5 + 0.5, 0.0, 1.0);
+    
+    float horizonBlend = smoothstep(0.30, 0.75, t);
+    float zenithBlend  = smoothstep(0.55, 1.0,  t); 
+
+    vec3 col = mix(pal.horizon, pal.mid, horizonBlend);
+    col = mix(col, pal.zenith, zenithBlend);
+    
     col = adjustSkyLook(col);
     col = applyRainSky(col, sunHeight, rainStrength);
 
-    float sunDot = max(dot(pos, sunDir), 0.0);
-    float disc = pow(sunDot, SUN_DISC_SIZE) * SUN_GLOW_INTENSITY;
+    float sunDot = max(dot(worldDir, sunDirWorld), 0.0);
+    
+    float discSize = sunHeight < NIGHT_HEIGHT_THRESHOLD ? MOON_DISC_SIZE : SUN_DISC_SIZE;
+    float discInt  = sunHeight < NIGHT_HEIGHT_THRESHOLD ? MOON_GLOW_INTENSITY : SUN_GLOW_INTENSITY;
+    
+    float disc = pow(sunDot, discSize);
+    float glow = pow(sunDot, discSize * 0.22) * 0.4;
+    
     float sunFade = 1.0 - rainStrength * 0.8;
-    col += vec3(1.0, 0.85, 0.65) * disc * sunFade;
+    vec3 sunCol = getSunColor(sunHeight, rainStrength);
+    
+    col += sunCol * (disc * discInt + glow * 0.3) * sunFade;
 
     return col;
 }

@@ -9,13 +9,14 @@
 #define GODRAY_SAMPLES 40
 #define GODRAY_MAX_DIST 250.0
 #define GODRAY_DENSITY 0.006
-#define GODRAY_SCATTERING 0.7
-#define GODRAY_ABSORPTION 0.6
-#define GODRAY_CONTRAST 3.0
+#define GODRAY_SCATTERING 0.60
+#define GODRAY_ISOTROPIC 0.70
+#define GODRAY_ABSORPTION 0.3
+#define GODRAY_CONTRAST 2.0
 #define GODRAY_HALO_CAP 0.5        
 #define GODRAY_HALO_INTENSITY 0.5  
 #define GODRAY_SHAFT_CAP 6.0        
-#define GODRAY_SHAFT_INTENSITY 0.7  
+#define GODRAY_SHAFT_INTENSITY 0.5
 
 float interleavedGradientNoise(vec2 fragCoord) {
     vec3 magic = vec3(0.06711056, 0.00583715, 52.9829189);
@@ -67,12 +68,20 @@ float getGodRayTimeIntensity() {
 }
 
 vec3 getGodRayColor() {
-    int t = worldTime;
-    if (t >= 23000 || t <= 1200) {
-        return vec3(1.0, 0.96, 0.82);
-    } else {
-        return vec3(1.0, 0.78, 0.55);
-    }
+    float wt = float(worldTime);
+
+    vec3 dawnGod   = vec3(1.00, 0.95, 0.55);
+    vec3 dayGod    = vec3(1.00, 0.92, 0.55);
+    vec3 sunsetGod = vec3(1.00, 0.78, 0.25);
+    vec3 nightGod  = vec3(0.75, 0.80, 0.95);  
+
+    vec3 col = dawnGod;
+    col = mix(col, dayGod,    smoothstep(0.0,     1500.0, wt));
+    col = mix(col, sunsetGod, smoothstep(11000.0, 12000.0, wt));
+    col = mix(col, nightGod,  smoothstep(12500.0, 13500.0, wt));
+    col = mix(col, dawnGod,   smoothstep(22500.0, 23500.0, wt));
+
+    return col;
 }
 
 // VOLUMETRIC GOD RAYS
@@ -101,7 +110,7 @@ vec3 computeGodRays(vec2 uv, float rawDepth, vec3 sunDirWorld) {
     vec3 currentPos = stepVec * dither;
 
     float transmittance = 1.0;
-    vec3 densityAccum = vec3(0.0); // occlusion-weighted density
+    vec3 densityAccum = vec3(0.0); 
     float litSteps = 0.0;
 
     for (int i = 0; i < GODRAY_SAMPLES; i++) {
@@ -133,6 +142,7 @@ vec3 computeGodRays(vec2 uv, float rawDepth, vec3 sunDirWorld) {
     float phaseRaw = hgPhase(max(dot(rayDir, sunDirWorld), 0.0), GODRAY_SCATTERING);
     float phaseCap = mix(GODRAY_SHAFT_CAP, GODRAY_HALO_CAP, haloWeight);
     float phase = min(phaseRaw, phaseCap);
+    phase = max(phase, GODRAY_ISOTROPIC);
 
     float finalIntensity = mix(GODRAY_SHAFT_INTENSITY, GODRAY_HALO_INTENSITY, haloWeight);
 

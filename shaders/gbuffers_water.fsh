@@ -22,11 +22,11 @@ varying float isRealWater;
 #define NIGHT_HEIGHT_THRESHOLD -0.3
 
 vec3 skyColorByWorldTime(int wt, float sunHeight, float rain) {
-    vec3 night   = vec3(0.28, 0.30, 0.56);
-    vec3 sunrise = vec3(0.90, 0.55, 0.40);
+    vec3 night   = vec3(0.26, 0.28, 0.53);
+    vec3 sunrise = vec3(0.60, 0.76, 0.95);
     vec3 day     = vec3(0.45, 0.70, 0.98);
     vec3 noon    = vec3(0.42, 0.68, 1.00);
-    vec3 sunset  = vec3(0.85, 0.45, 0.35);
+    vec3 sunset  = vec3(0.62, 0.68, 0.90);
 
     bool isMorning = wt < 12000;
     vec3 horizonCol = isMorning ? sunrise : sunset;
@@ -47,7 +47,7 @@ vec3 waterTintByTime(float sunHeight, int wt) {
     vec3 night   = vec3(0.15, 0.28, 0.45);      
     vec3 sunrise = vec3(0.28, 0.38, 0.40);     
     vec3 day     = vec3(0.02, 0.55, 0.60);      
-    vec3 sunset  = vec3(0.85, 0.90, 0.35);
+    vec3 sunset  = vec3(0.42, 0.46, 0.58);
 
     bool isMorning = wt < 12000;
     vec3 horizonCol = isMorning ? sunrise : sunset;
