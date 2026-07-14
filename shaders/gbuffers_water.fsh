@@ -92,15 +92,18 @@ void main() {
     vec3 N = normalize(viewNormal);
     vec3 viewDir = normalize(viewPos);
 
+    vec3 geoNormal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
+    if (dot(geoNormal, viewDir) > 0.0) geoNormal = -geoNormal;
+
     vec3 skyCol = skyColorByWorldTime(worldTime, sunHeight, rainStrength);
     vec3 skyColClamped = max(skyCol, vec3(0.05, 0.06, 0.09));
 
     vec3 reflectionColor;
     if (isEyeInWater == 0) {
-        vec3 reflectDir = reflect(viewDir, flatNormal);
+        vec3 reflectDir = reflect(viewDir, geoNormal);
         vec3 worldReflectDir = normalize((gbufferModelViewInverse * vec4(reflectDir, 0.0)).xyz);
 
-        reflectionColor = mix(skyColClamped * 0.55, skyColClamped * 1.15, clamp(worldReflectDir.y * 0.5 + 0.5, 0.0, 1.0));
+        reflectionColor = mix(skyColClamped * 0.55, skyColClamped * 0.70, clamp(worldReflectDir.y * 0.5 + 0.5, 0.0, 1.0));
     } else {
         reflectionColor = skyColClamped * 0.45;
     }
@@ -118,7 +121,12 @@ void main() {
     vec3 caveAmbient = baseColor.rgb * 0.35;
     vec3 ambientReflection = mix(caveAmbient, reflectionColor, skyVisibility);
 
+    vec3 worldFlatNormal = normalize((gbufferModelViewInverse * vec4(geoNormal, 0.0)).xyz);
+    float verticalness = 1.0 - abs(worldFlatNormal.y);
+
     float reflectWeight = fresnel * float(isEyeInWater == 0);
+    reflectWeight = max(reflectWeight, mix(0.0, 0.15, verticalness) * float(isEyeInWater == 0));
+
     vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, reflectWeight);
 
     float caveAlphaReduce = mix(0.15, 0.0, skyVisibility);

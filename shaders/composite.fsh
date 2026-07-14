@@ -33,10 +33,7 @@ uniform mat4 gbufferModelView;
 varying vec2 texcoord;
 varying float eyeInWater;
 
-// ============================================================
-// CONFIG
-// ============================================================
-
+// CONFIGURATION
 #define CLOUD_HEIGHT 192.0
 #define CLOUD_SCALE 0.02
 #define CLOUD_SPEED 0.001
@@ -53,7 +50,7 @@ varying float eyeInWater;
 
 #define AERIAL_FOG_DENSITY 0.00035  
 #define AERIAL_FOG_START 25.0       
-#define RENDER_DISTANCE_FOG_INTENSITY 1
+#define RENDER_DISTANCE_FOG_INTENSITY 2
 #define RENDER_DISTANCE_FOG_CURVE 4.0
 
 #define WEATHER_FOG_DENSITY 0.006
@@ -63,13 +60,18 @@ varying float eyeInWater;
 #define EXPOSURE_MIN 0.9
 #define EXPOSURE_MAX 1.3
 #define EXPOSURE_ADAPT_RATE 1.0
+#define NIGHT_TARGET_LUMA_MULT   0.9
+#define NIGHT_EXPOSURE_MIN_MULT  0.7
+#define NIGHT_EXPOSURE_MAX_MULT  0.9
+#define EXPOSURE_ENCODE_MIN (EXPOSURE_MIN * NIGHT_EXPOSURE_MIN_MULT)
+#define EXPOSURE_ENCODE_MAX EXPOSURE_MAX
 
-#define BLOOM_THRESHOLD 0.95
+#define BLOOM_THRESHOLD 0.75
 #define BLOOM_KNEE 0.35
 #define BLOOM_INTENSITY 0.4
 #define BLOOM_CORE_BOOST 1.2
-#define BLOOM_RADIUS_PX 0.75
-#define BLOOM_RADIUS_PX_WIDE 2.0
+#define BLOOM_RADIUS_PX 0.4
+#define BLOOM_RADIUS_PX_WIDE 1.2
 
 #define SATURATION 1.4
 #define VIBRANCE 0.35
@@ -192,7 +194,7 @@ void main() {
 
     col = col + bloomContribution;
 
-    float exposure = computeExposure();
+    float exposure = computeExposure(sunDir);
     col *= exposure;
 
     col = applyColorGrade(col, sunDir);

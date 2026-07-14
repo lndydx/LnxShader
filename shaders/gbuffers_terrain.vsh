@@ -17,10 +17,13 @@ varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
 
+ // SSS
+varying vec3 leafViewPos;  
+varying float isLeaf;      
+
 #include "/distort.glsl"
 
 // WIND CONFIG 
-
 #define WAVE_LEAVES_ID   10010
 #define WAVE_GRASS_ID    10011
 #define WAVE_VINE_ID     10012
@@ -67,6 +70,7 @@ void main() {
     vec3 blockPos = floor(worldPos + 0.001);
 
     int blockId = int(mc_Entity.x);
+    isLeaf = float(blockId == WAVE_LEAVES_ID);
 
     if (blockId == WAVE_LEAVES_ID) {
         float phase   = hash13(blockPos) * 6.283;
@@ -100,7 +104,8 @@ void main() {
     }
 
     // SHADOW 
-    float lightDot = dot(normalize(shadowLightPosition), normalize(gl_NormalMatrix * gl_Normal));
+    vec3 viewNormal = gl_NormalMatrix * gl_Normal;
+    float lightDot = dot(normalize(shadowLightPosition), normalize(viewNormal));
     #ifdef EXCLUDE_FOLIAGE
         float id = mc_Entity.x;
         bool isFoliage = (id == 10000.0) || (id >= 10010.0 && id <= 10016.0);
@@ -108,6 +113,8 @@ void main() {
     #endif
 
     vec4 viewPos = gl_ModelViewMatrix * position;
+    leafViewPos = viewPos.xyz;
+
     if (lightDot > 0.0) {
         vec4 playerPos = gbufferModelViewInverse * viewPos;
         shadowPos = shadowProjection * (shadowModelView * playerPos);

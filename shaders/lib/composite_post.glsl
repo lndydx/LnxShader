@@ -86,16 +86,24 @@ float sampleAverageLuminance() {
 }
 
 float encodeExposure(float e) {
-    return clamp((e - EXPOSURE_MIN) / (EXPOSURE_MAX - EXPOSURE_MIN), 0.0, 1.0);
+    return clamp((e - EXPOSURE_ENCODE_MIN) / (EXPOSURE_ENCODE_MAX - EXPOSURE_ENCODE_MIN), 0.0, 1.0);
 }
 
 float decodeExposure(float e01) {
-    return e01 * (EXPOSURE_MAX - EXPOSURE_MIN) + EXPOSURE_MIN;
+    return e01 * (EXPOSURE_ENCODE_MAX - EXPOSURE_ENCODE_MIN) + EXPOSURE_ENCODE_MIN;
 }
 
-float computeExposure() {
+float computeExposure(vec3 sunDir) {
     float avgLuma = max(sampleAverageLuminance(), 0.0001);
-    float targetExposure = clamp(TARGET_LUMA / avgLuma, EXPOSURE_MIN, EXPOSURE_MAX);
+
+    float h = sunDir.y;
+    float nightFactor = 1.0 - smoothstep(NIGHT_HEIGHT_THRESHOLD, 0.0, h); 
+
+    float targetLuma  = mix(TARGET_LUMA,  TARGET_LUMA  * NIGHT_TARGET_LUMA_MULT,  nightFactor);
+    float exposureMin = mix(EXPOSURE_MIN, EXPOSURE_MIN * NIGHT_EXPOSURE_MIN_MULT, nightFactor);
+    float exposureMax = mix(EXPOSURE_MAX, EXPOSURE_MAX * NIGHT_EXPOSURE_MAX_MULT, nightFactor);
+
+    float targetExposure = clamp(targetLuma / avgLuma, exposureMin, exposureMax);
 
     vec2 historyTexel = vec2(0.5 / viewWidth, 0.5 / viewHeight);
     float lastExposureRaw = texture2D(colortex2, historyTexel).r;
