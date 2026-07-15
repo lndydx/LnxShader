@@ -5,6 +5,10 @@ attribute vec4 mc_Entity;
 
 uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
+uniform mat4 gbufferModelViewInverse;
+uniform mat4 shadowModelView;
+uniform mat4 shadowProjection;
+uniform vec3 shadowLightPosition;
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
@@ -13,6 +17,9 @@ varying vec3 viewPos;
 varying vec3 viewNormal;
 varying vec3 flatNormal;
 varying float isRealWater;
+varying vec4 shadowPos;
+
+#include "/distort.glsl"
 
 float waveHeight(vec2 pos, float t) {
     return sin(pos.x * 0.8 + pos.y * 0.5 + t * 1.2) * 0.09
@@ -53,6 +60,21 @@ void main() {
 
     vec4 viewPosition = gl_ModelViewMatrix * displacedVertex;
     viewPos = viewPosition.xyz;
+
+    // SHADOW - sample shadow at the water SURFACE, not at the lakebed underneath it
+    float lightDot = dot(normalize(shadowLightPosition), viewNormal);
+
+    if (lightDot > 0.0) {
+        vec4 playerPos = gbufferModelViewInverse * viewPosition;
+        shadowPos = shadowProjection * (shadowModelView * playerPos);
+        float bias = computeBias(shadowPos.xyz);
+        shadowPos.xyz = distort(shadowPos.xyz);
+        shadowPos.xyz = shadowPos.xyz * 0.5 + 0.5;
+        shadowPos.z -= bias / abs(lightDot);
+    } else {
+        shadowPos = vec4(0.0);
+    }
+    shadowPos.w = lightDot;
 
     gl_Position = gl_ProjectionMatrix * viewPosition;
 

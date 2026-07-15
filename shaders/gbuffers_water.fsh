@@ -8,6 +8,7 @@ uniform vec3 sunPosition;
 uniform int worldTime;
 uniform float rainStrength;
 uniform int isEyeInWater;
+uniform sampler2D shadowtex1;
 
 varying vec2 texcoord;
 varying vec2 lmcoord;
@@ -16,6 +17,11 @@ varying vec3 viewPos;
 varying vec3 viewNormal;
 varying vec3 flatNormal;
 varying float isRealWater;
+varying vec4 shadowPos;
+
+const bool shadowtex1Nearest = true;
+
+#include "/distort.glsl"
 
 #define STORM_WATER_COLOR vec3(0.34, 0.38, 0.4)
 #define DAY_HEIGHT_THRESHOLD 0.5
@@ -128,6 +134,22 @@ void main() {
     reflectWeight = max(reflectWeight, mix(0.0, 0.15, verticalness) * float(isEyeInWater == 0));
 
     vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, reflectWeight);
+
+    // SHADOW - darken the water SURFACE itself so shadows stick to the top of
+    // the water instead of only showing through it from the lakebed below.
+    #ifdef SHADOWS
+    float shadow = 1.0;
+    if (shadowPos.w > 0.0) {
+        if (texture2D(shadowtex1, shadowPos.xy).r < shadowPos.z) {
+            shadow = SHADOW_BRIGHTNESS;
+        }
+    } else {
+        shadow = SHADOW_BRIGHTNESS;
+    }
+    // Only apply where the water is actually exposed to skylight (lmcoord.y),
+    // so shadow doesn't incorrectly darken torch-lit water in caves/indoors.
+    finalColor *= mix(1.0, shadow, skyVisibility);
+    #endif
 
     float caveAlphaReduce = mix(0.15, 0.0, skyVisibility);
     float finalAlpha = clamp((0.32 - rainStrength * 0.05) + fresnel * 0.55 - caveAlphaReduce, 0.0, 1.0);

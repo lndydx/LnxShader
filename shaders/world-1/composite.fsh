@@ -1,5 +1,7 @@
 #version 120
 
+#define SKIP_OVERWORLD_ATMOSPHERICS
+
 uniform sampler2D colortex0;
 uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
@@ -45,11 +47,11 @@ varying float eyeInWater;
 #define CLOUD_SHADOW_OFFSET 6.0
 #define CLOUD_SHADOW_STRENGTH 0.35
 #define CLOUD_RIM_STRENGTH 0.35
-      
+
 #define DEBUG_GODRAYS 1
 
-#define AERIAL_FOG_DENSITY 0.00035  
-#define AERIAL_FOG_START 25.0       
+#define AERIAL_FOG_DENSITY 0.00035
+#define AERIAL_FOG_START 25.0
 #define RENDER_DISTANCE_FOG_INTENSITY 2
 #define RENDER_DISTANCE_FOG_CURVE 4.0
 
@@ -78,7 +80,7 @@ varying float eyeInWater;
 #define CONTRAST 0.15
 #define SHARPEN_STRENGTH 0.1
 
-#define DAY_HEIGHT_THRESHOLD 0.40      
+#define DAY_HEIGHT_THRESHOLD 0.40
 #define NIGHT_HEIGHT_THRESHOLD -0.30
 #define SKY_ZENITH_BIAS 0.55
 
@@ -151,8 +153,11 @@ void main() {
         col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir, sunDir);
     } else {
         float sceneDist = linDepth * far;
-        vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);
-        col = mix(col, clouds.rgb, clouds.a);
+
+        #ifndef SKIP_OVERWORLD_ATMOSPHERICS
+            vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);
+            col = mix(col, clouds.rgb, clouds.a);
+        #endif
 
         if (!isSky) {
             vec3 viewPos = getViewPos(texcoord, rawDepth);
@@ -176,13 +181,15 @@ void main() {
             col *= ao;
         }
 
-        // GOD RAYS 
+        // GOD RAYS
         vec3 godrays = computeGodRays(texcoord, rawDepth, sunDir);
         col += godrays * (isSky ? 0.0 : 1.0);
 
-        col = applyWeatherFog(col, linDepth);
-        col = applyAerialFog(col, linDepth, isSky, rayDir, sunDir, worldTime, rainStrength);
-        col = applyRenderDistanceFog(col, linDepth, isSky, sunDir, worldTime, rainStrength);
+        #ifndef SKIP_OVERWORLD_ATMOSPHERICS
+            col = applyWeatherFog(col, linDepth);
+            col = applyAerialFog(col, linDepth, isSky, rayDir, sunDir, worldTime, rainStrength);
+            col = applyRenderDistanceFog(col, linDepth, isSky, sunDir, worldTime, rainStrength);
+        #endif
     }
 
     vec3 bloomContribution = isSky ? vec3(0.0) : getBloomContribution(col, texcoord);
