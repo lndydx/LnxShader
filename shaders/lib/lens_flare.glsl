@@ -5,11 +5,22 @@
 #define LENS_ANAMORPHIC_WIDTH_PX 3.0 
 #define LENS_ANAMORPHIC_LENGTH_PX 260.0   
 #define LENS_ANAMORPHIC_INTENSITY 0.30
+#define LENS_ANAMORPHIC_STREAKS 1   // 1 = nyala, 0 = mati (fitur toggle)
+
+#define LENS_ANAMORPHIC_WIDTH_PX 3.0
+#define LENS_ANAMORPHIC_LENGTH_PX 260.0
+#define LENS_ANAMORPHIC_INTENSITY 0.30
+#define LENS_ANAMORPHIC_VERT_WIDTH_PX 3.0
+#define LENS_ANAMORPHIC_VERT_LENGTH_PX 140.0
+#define LENS_ANAMORPHIC_VERT_INTENSITY 0.18
+#define LENS_ANAMORPHIC_DIAG_WIDTH_PX 2.5
+#define LENS_ANAMORPHIC_DIAG_LENGTH_PX 100.0
+#define LENS_ANAMORPHIC_DIAG_INTENSITY 0.20
 
 vec3 lensGhost(vec2 uv, vec2 pos, float radiusPx, vec3 color) {
     vec2 diffPx = (uv - pos) * vec2(viewWidth, viewHeight);
     float dist = length(diffPx);
-    float falloff = smoothstep(radiusPx, radiusPx * 0.15, dist);
+    float falloff = 1.0 - smoothstep(radiusPx * 0.15, radiusPx, dist);
     return color * falloff;
 }
 
@@ -21,7 +32,7 @@ vec3 hueRainbow(float h) {
 vec3 lensRainbowArc(vec2 uv, vec2 center, vec2 awayDir, float radiusPx, float thicknessPx) {
     vec2 diffPx = (uv - center) * vec2(viewWidth, viewHeight);
     float dist = length(diffPx);
-    float ring = smoothstep(thicknessPx, 0.0, abs(dist - radiusPx));
+    float ring = 1.0 - smoothstep(0.0, thicknessPx, abs(dist - radiusPx));
     if (ring <= 0.0) return vec3(0.0);
 
     float angle = atan(diffPx.y, diffPx.x) / 6.2831853;
@@ -33,11 +44,32 @@ vec3 lensRainbowArc(vec2 uv, vec2 center, vec2 awayDir, float radiusPx, float th
     return rainbow * ring * halfMask;
 }
 
+vec3 lensStreak(vec2 diffPx, float angleRad, float widthPx, float lengthPx, float intensity) {
+    float c = cos(angleRad);
+    float s = sin(angleRad);
+    float along  = diffPx.x * c + diffPx.y * s;
+    float across = -diffPx.x * s + diffPx.y * c;
+
+    float acrossFalloff = exp(-abs(across) / widthPx);
+    float alongFalloff  = 1.0 - smoothstep(0.0, lengthPx, abs(along));
+
+    return vec3(1.0, 0.92, 0.75) * acrossFalloff * alongFalloff * intensity;
+}
+
 vec3 lensAnamorphicGlow(vec2 uv, vec2 sunPos) {
+    #if LENS_ANAMORPHIC_STREAKS == 0
+        return vec3(0.0);
+    #endif
+
     vec2 diffPx = (uv - sunPos) * vec2(viewWidth, viewHeight);
-    float vertFalloff = exp(-abs(diffPx.y) / LENS_ANAMORPHIC_WIDTH_PX);
-    float horizFalloff = smoothstep(LENS_ANAMORPHIC_LENGTH_PX, 0.0, abs(diffPx.x));
-    return vec3(1.0, 0.92, 0.75) * vertFalloff * horizFalloff * LENS_ANAMORPHIC_INTENSITY;
+
+    vec3 col = vec3(0.0);
+    col += lensStreak(diffPx, 0.0, LENS_ANAMORPHIC_WIDTH_PX, LENS_ANAMORPHIC_LENGTH_PX, LENS_ANAMORPHIC_INTENSITY);      
+    col += lensStreak(diffPx, 1.5707963, LENS_ANAMORPHIC_VERT_WIDTH_PX, LENS_ANAMORPHIC_VERT_LENGTH_PX, LENS_ANAMORPHIC_VERT_INTENSITY); 
+    col += lensStreak(diffPx, 0.7853982, LENS_ANAMORPHIC_DIAG_WIDTH_PX, LENS_ANAMORPHIC_DIAG_LENGTH_PX, LENS_ANAMORPHIC_DIAG_INTENSITY); 
+    col += lensStreak(diffPx, -0.7853982, LENS_ANAMORPHIC_DIAG_WIDTH_PX, LENS_ANAMORPHIC_DIAG_LENGTH_PX, LENS_ANAMORPHIC_DIAG_INTENSITY); 
+
+    return col;
 }
 
 vec3 computeLensFlare(vec2 uv, vec3 sunDirView, vec3 sunDirWorld, float rain, vec3 baseCol) {

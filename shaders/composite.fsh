@@ -27,6 +27,7 @@ uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowModelView;
 uniform mat4 shadowProjection;
 uniform mat4 gbufferModelView;
+uniform float thunderStrength;
 uniform mat4 gbufferProjection;
 
 #include "/distort.glsl"
@@ -49,15 +50,12 @@ varying float eyeInWater;
       
 #define DEBUG_GODRAYS 1
 
-#define RENDER_DISTANCE_FOG_START 120.0  
-#define RENDER_DISTANCE_FOG_END   250.0   
-#define RENDER_DISTANCE_FOG_INTENSITY 2
-#define RENDER_DISTANCE_FOG_CURVE 4.0
+#define RENDER_DISTANCE_FOG_START 100.0  
+#define RENDER_DISTANCE_FOG_END   280.0   
+#define RENDER_DISTANCE_FOG_INTENSITY 1.0
+#define RENDER_DISTANCE_FOG_CURVE 2.0
 #define AERIAL_FOG_DENSITY 0.0012   
 #define AERIAL_FOG_START 40.0    
-#define RENDER_DISTANCE_FOG_INTENSITY 2
-#define RENDER_DISTANCE_FOG_CURVE 4.0
-
 #define WEATHER_FOG_DENSITY 0.006
 #define WEATHER_FOG_MAX 0.22
 
@@ -193,7 +191,7 @@ void main() {
         vec3 godrays = computeGodRays(texcoord, rawDepth, sunDir);
         col += godrays * (isSky ? 0.0 : 1.0);
 
-        col = applyWeatherFog(col, linDepth);
+        col = applyWeatherFog(col, linDepth, thunderStrength);
         col = applyAerialFog(col, linDepth, isSky, rayDir, sunDir, worldTime, rainStrength);
         col = applyRenderDistanceFog(col, linDepth, isSky, sunDir, worldTime, rainStrength);
     }

@@ -81,7 +81,7 @@ void main() {
 	}
 	#endif
 
-/* DRAWBUFFERS:01 */
+	/* DRAWBUFFERS:01 */
 	gl_FragData[0] = color; 
 	gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); 
 }

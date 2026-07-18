@@ -27,8 +27,14 @@ vec3 getHorizonColorByTime(vec3 sunDir, int wt_, float rain) {
 vec3 applyRenderDistanceFog(vec3 col, float linDepth, bool isSky, vec3 sunDir, int wt, float rain) {
     if (isSky) return col;
     float realDistance = linDepth * far;
-    float fogFactor = clamp((realDistance - RENDER_DISTANCE_FOG_START) / max(RENDER_DISTANCE_FOG_END - RENDER_DISTANCE_FOG_START, 0.001), 0.0, 1.0);
-    fogFactor = pow(fogFactor, RENDER_DISTANCE_FOG_CURVE) * RENDER_DISTANCE_FOG_INTENSITY;
+
+    // hujan melebarkan+majuin zona fog dikit, bukan mempersempit
+    float rainWiden = mix(1.0, 0.8, rain);
+    float fogStartAdj = RENDER_DISTANCE_FOG_START * rainWiden;
+    float fogEndAdj   = RENDER_DISTANCE_FOG_END;
+
+    float t = smoothstep(fogStartAdj, fogEndAdj, realDistance);
+    float fogFactor = pow(t, RENDER_DISTANCE_FOG_CURVE) * RENDER_DISTANCE_FOG_INTENSITY;
     fogFactor = clamp(fogFactor, 0.0, 1.0);
 
     vec3 fogCol = getHorizonColorByTime(sunDir, wt, rain);
@@ -42,22 +48,26 @@ vec3 aerialFogColorByTime(vec3 sunDir, int wt, float rain) {
 vec3 applyAerialFog(vec3 col, float linDepth, bool isSky, vec3 rayDir, vec3 sunDir, int wt, float rain) {
     if (isSky) return col;
     float realDistance = linDepth * far;
-    
-    float fogFactor = 1.0 - exp(-max(realDistance - AERIAL_FOG_START, 0.0) * AERIAL_FOG_DENSITY);
-    fogFactor = clamp(fogFactor, 0.0, 1.0);
-    
+
+    float rainDensityBoost = 1.0 + rain * 1.2;
+    float fogFactor = 1.0 - exp(-max(realDistance - AERIAL_FOG_START, 0.0) * AERIAL_FOG_DENSITY * rainDensityBoost);
+    fogFactor = clamp(fogFactor, 0.0, 0.9);
+
     float heightFactor = exp(-max(cameraPosition.y - 62.0, 0.0) * 0.008);
-    fogFactor = mix(fogFactor, min(fogFactor * 1.5, 1.0), heightFactor * 0.6);
-    
+    fogFactor = mix(fogFactor, min(fogFactor * 1.3, 0.9), heightFactor * 0.6);
+
     vec3 fogCol = aerialFogColorByTime(sunDir, wt, rain);
     return mix(col, fogCol, fogFactor);
 }
 
-vec3 applyWeatherFog(vec3 col, float linDepth) {
+vec3 applyWeatherFog(vec3 col, float linDepth, float thunder) {
     if ((biome_precipitation != PPT_RAIN && biome_precipitation != PPT_SNOW) || rainStrength <= 0.001) return col;
     float realDistance = linDepth * far;
-    float fogFactor = 1.0 - exp(-realDistance * WEATHER_FOG_DENSITY * rainStrength);
-    fogFactor = clamp(fogFactor, 0.0, WEATHER_FOG_MAX) * pow(rainStrength, 1.5);
+
+    float densityMult = 1.0 + thunder * 0.8;
+    float fogFactor = 1.0 - exp(-realDistance * WEATHER_FOG_DENSITY * rainStrength * densityMult);
+    float maxFog = min(WEATHER_FOG_MAX + thunder * 0.12, 0.75);
+    fogFactor = clamp(fogFactor, 0.0, maxFog) * pow(rainStrength, 1.5);
     vec3 weatherFogColor = vec3(0.32, 0.42, 0.48);
     return mix(col, weatherFogColor, fogFactor);
 }
