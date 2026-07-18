@@ -135,8 +135,6 @@ void main() {
 
     vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, reflectWeight);
 
-    // SHADOW - darken the water SURFACE itself so shadows stick to the top of
-    // the water instead of only showing through it from the lakebed below.
     #ifdef SHADOWS
     float shadow = 1.0;
     if (shadowPos.w > 0.0) {
@@ -146,8 +144,6 @@ void main() {
     } else {
         shadow = SHADOW_BRIGHTNESS;
     }
-    // Only apply where the water is actually exposed to skylight (lmcoord.y),
-    // so shadow doesn't incorrectly darken torch-lit water in caves/indoors.
     finalColor *= mix(1.0, shadow, skyVisibility);
     #endif
 

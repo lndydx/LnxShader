@@ -27,9 +27,10 @@ vec3 getHorizonColorByTime(vec3 sunDir, int wt_, float rain) {
 vec3 applyRenderDistanceFog(vec3 col, float linDepth, bool isSky, vec3 sunDir, int wt, float rain) {
     if (isSky) return col;
     float realDistance = linDepth * far;
-    float fogFactor = clamp((realDistance - fogStart) / max(fogEnd - fogStart, 0.001), 0.0, 1.0);
+    float fogFactor = clamp((realDistance - RENDER_DISTANCE_FOG_START) / max(RENDER_DISTANCE_FOG_END - RENDER_DISTANCE_FOG_START, 0.001), 0.0, 1.0);
     fogFactor = pow(fogFactor, RENDER_DISTANCE_FOG_CURVE) * RENDER_DISTANCE_FOG_INTENSITY;
-    
+    fogFactor = clamp(fogFactor, 0.0, 1.0);
+
     vec3 fogCol = getHorizonColorByTime(sunDir, wt, rain);
     return mix(col, fogCol, fogFactor);
 }
@@ -53,7 +54,7 @@ vec3 applyAerialFog(vec3 col, float linDepth, bool isSky, vec3 rayDir, vec3 sunD
 }
 
 vec3 applyWeatherFog(vec3 col, float linDepth) {
-    if (biome_precipitation != PPT_RAIN || rainStrength <= 0.001) return col;
+    if ((biome_precipitation != PPT_RAIN && biome_precipitation != PPT_SNOW) || rainStrength <= 0.001) return col;
     float realDistance = linDepth * far;
     float fogFactor = 1.0 - exp(-realDistance * WEATHER_FOG_DENSITY * rainStrength);
     fogFactor = clamp(fogFactor, 0.0, WEATHER_FOG_MAX) * pow(rainStrength, 1.5);

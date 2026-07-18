@@ -1,10 +1,10 @@
 #ifndef LEAF_SSS_INCLUDED
 #define LEAF_SSS_INCLUDED
 
-#define SSS_STRENGTH        3.0
-#define SSS_POWER           8.0   // hotspot sharpness ke arah matahari
-#define SSS_THICKNESS_SCALE 40.0  // shadow-space depth delta -> world thickness. TUNE INI DI GAME.
-#define SSS_DENSITY         5.0   // seberapa cepat mati per unit thickness
+#define SSS_STRENGTH 3.0
+#define SSS_POWER 6.0   
+#define SSS_THICKNESS_SCALE 40.0 
+#define SSS_DENSITY 5.0  
 #define SSS_COLOR vec3(1.0, 0.55, 0.2)
 
 vec3 calcLeafSSS(vec3 albedo, vec3 viewDir, vec3 sunDir, vec4 shadowPos, sampler2D shadowtex1) {

@@ -27,6 +27,7 @@ uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowModelView;
 uniform mat4 shadowProjection;
 uniform mat4 gbufferModelView;
+uniform mat4 gbufferProjection;
 
 #include "/distort.glsl"
 
@@ -48,8 +49,12 @@ varying float eyeInWater;
       
 #define DEBUG_GODRAYS 1
 
-#define AERIAL_FOG_DENSITY 0.00035  
-#define AERIAL_FOG_START 25.0       
+#define RENDER_DISTANCE_FOG_START 120.0  
+#define RENDER_DISTANCE_FOG_END   250.0   
+#define RENDER_DISTANCE_FOG_INTENSITY 2
+#define RENDER_DISTANCE_FOG_CURVE 4.0
+#define AERIAL_FOG_DENSITY 0.0012   
+#define AERIAL_FOG_START 40.0    
 #define RENDER_DISTANCE_FOG_INTENSITY 2
 #define RENDER_DISTANCE_FOG_CURVE 4.0
 
@@ -69,7 +74,7 @@ varying float eyeInWater;
 #define BLOOM_THRESHOLD 0.75
 #define BLOOM_KNEE 0.35
 #define BLOOM_INTENSITY 0.4
-#define BLOOM_CORE_BOOST 1.2
+#define BLOOM_CORE_BOOST 0.8
 #define BLOOM_RADIUS_PX 0.4
 #define BLOOM_RADIUS_PX_WIDE 1.2
 
@@ -93,16 +98,14 @@ varying float eyeInWater;
 #define PPT_SNOW 2
 #endif
 
-// ============================================================
 // INCLUDES
-// ============================================================
-
 #include "/lib/composite_common.glsl"
 #include "/lib/composite_fog.glsl"
 #include "/lib/composite_clouds.glsl"
 #include "/lib/composite_underwater.glsl"
 #include "/lib/composite_post.glsl"
 #include "/lib/godrays.glsl"
+#include "/lib/lens_flare.glsl"
 
 // SSAO
 float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
@@ -131,6 +134,14 @@ float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     return 1.0 - clamp(occlusion * AO_STRENGTH, 0.0, 1.0);
 }
 
+// LAVA VISION — sama kayak versi End/Nether, tinggal ketinggalan di overworld
+vec3 applyLavaVision(vec3 sceneColor, float linDepth) {
+    float dist = linDepth * far;
+    float sceneVisibility = (1.0 - smoothstep(0.0, 3.0, dist)) * 0.4; 
+    vec3 lavaColor = vec3(0.85, 0.32, 0.05) + 0.04 * sin(frameTimeCounter * 2.0);
+    return mix(lavaColor, sceneColor, sceneVisibility);
+}
+
 /* DRAWBUFFERS:02 */
 
 void main() {
@@ -143,7 +154,9 @@ void main() {
     vec3 viewDirVS = getViewPos(texcoord, 0.0);
     vec3 rayDir = normalize((gbufferModelViewInverse * vec4(viewDirVS, 0.0)).xyz);
 
-    if (eyeInWater > 0.5 && eyeInWater < 1.5) {
+    if (eyeInWater > 1.5) {
+        col = applyLavaVision(col, linDepth);
+    } else if (eyeInWater > 0.5) {
         float rawDepth1 = texture2D(depthtex1, texcoord).r;
         bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
         vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
@@ -183,6 +196,10 @@ void main() {
         col = applyWeatherFog(col, linDepth);
         col = applyAerialFog(col, linDepth, isSky, rayDir, sunDir, worldTime, rainStrength);
         col = applyRenderDistanceFog(col, linDepth, isSky, sunDir, worldTime, rainStrength);
+    }
+
+    if (eyeInWater <= 0.5) {
+        col += computeLensFlare(texcoord, normalize(sunPosition), sunDir, rainStrength, col);
     }
 
     vec3 bloomContribution = isSky ? vec3(0.0) : getBloomContribution(col, texcoord);

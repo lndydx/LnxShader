@@ -1,14 +1,10 @@
 #version 120
 
-#define SKIP_OVERWORLD_ATMOSPHERICS
-
 uniform sampler2D colortex0;
 uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D lightmap;
-uniform sampler2D shadowtex0;
-uniform sampler2D shadowtex1;
 
 uniform float near;
 uniform float far;
@@ -19,94 +15,73 @@ uniform float frameTimeCounter;
 uniform int worldTime;
 uniform vec3 cameraPosition;
 uniform vec3 sunPosition;
-uniform vec3 fogColor;
-uniform float fogStart;
-uniform float fogEnd;
 uniform float rainStrength;
-uniform int biome_precipitation;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
-uniform mat4 shadowModelView;
-uniform mat4 shadowProjection;
-uniform mat4 gbufferModelView;
-
-#include "/distort.glsl"
 
 varying vec2 texcoord;
 varying float eyeInWater;
 
-// CONFIGURATION
-#define CLOUD_HEIGHT 192.0
-#define CLOUD_SCALE 0.02
-#define CLOUD_SPEED 0.001
-#define CLOUD_WARP_SCALE 0.02
-#define CLOUD_WARP_SPEED 0.05
-#define CLOUD_COVERAGE 0.48
-#define CLOUD_SOFTNESS 0.3
-#define CLOUD_MAX_DISTANCE 750.0
-#define CLOUD_SHADOW_OFFSET 6.0
-#define CLOUD_SHADOW_STRENGTH 0.35
-#define CLOUD_RIM_STRENGTH 0.35
-
-#define DEBUG_GODRAYS 1
-
-#define AERIAL_FOG_DENSITY 0.00035
-#define AERIAL_FOG_START 25.0
-#define RENDER_DISTANCE_FOG_INTENSITY 2
-#define RENDER_DISTANCE_FOG_CURVE 4.0
-
-#define WEATHER_FOG_DENSITY 0.006
-#define WEATHER_FOG_MAX 0.22
-
-#define TARGET_LUMA 0.12
-#define EXPOSURE_MIN 0.9
-#define EXPOSURE_MAX 1.3
+#define TARGET_LUMA 0.062
+#define EXPOSURE_MIN 0.80
+#define EXPOSURE_MAX 1.05
 #define EXPOSURE_ADAPT_RATE 1.0
-#define NIGHT_TARGET_LUMA_MULT   0.9
-#define NIGHT_EXPOSURE_MIN_MULT  0.7
-#define NIGHT_EXPOSURE_MAX_MULT  0.9
+#define NIGHT_TARGET_LUMA_MULT   0.90
+#define NIGHT_EXPOSURE_MIN_MULT  0.70
+#define NIGHT_EXPOSURE_MAX_MULT  0.90
 #define EXPOSURE_ENCODE_MIN (EXPOSURE_MIN * NIGHT_EXPOSURE_MIN_MULT)
 #define EXPOSURE_ENCODE_MAX EXPOSURE_MAX
+#define END_AMBIENT_STRENGTH 0.032
 
-#define BLOOM_THRESHOLD 0.75
-#define BLOOM_KNEE 0.35
-#define BLOOM_INTENSITY 0.4
-#define BLOOM_CORE_BOOST 1.2
-#define BLOOM_RADIUS_PX 0.4
-#define BLOOM_RADIUS_PX_WIDE 1.2
+#define BLOOM_THRESHOLD 0.16
+#define BLOOM_KNEE 0.85
+#define BLOOM_INTENSITY 1.00
+#define BLOOM_CORE_BOOST 2.0
+#define BLOOM_RADIUS_PX 0.65
+#define BLOOM_RADIUS_PX_WIDE 1.4
 
-#define SATURATION 1.4
-#define VIBRANCE 0.35
-#define CONTRAST 0.15
-#define SHARPEN_STRENGTH 0.1
+#define SATURATION 0.95
+#define VIBRANCE 0.38
+#define CONTRAST 0.0
+#define SHARPEN_STRENGTH 0.0
 
-#define DAY_HEIGHT_THRESHOLD 0.40
 #define NIGHT_HEIGHT_THRESHOLD -0.30
-#define SKY_ZENITH_BIAS 0.55
 
 #define AO_RADIUS 0.2
-#define AO_STRENGTH 0.6
+#define AO_STRENGTH 0.0
 #define AO_SAMPLES 5
 #define AO_BIAS 0.03
 
-#ifndef PPT_NONE
-#define PPT_NONE 0
-#define PPT_RAIN 1
-#define PPT_SNOW 2
-#endif
+#define END_SKY_ZENITH_REF  vec3(0.003, 0.002, 0.006)
+#define END_SKY_MID_REF     vec3(0.008, 0.005, 0.012)
+#define END_SKY_HORIZON_REF vec3(0.015, 0.010, 0.022)
 
-// ============================================================
-// INCLUDES
-// ============================================================
+#define END_FOG_COLOR vec3(0.035, 0.030, 0.022)
+#define END_FOG_DENSITY 0.0016
+#define END_FOG_MAX 0.88
+#define END_FOG_SKY_BLEND 0.35
 
+#include "/lib/end_sky.glsl"
 #include "/lib/composite_common.glsl"
-#include "/lib/composite_fog.glsl"
-#include "/lib/composite_clouds.glsl"
 #include "/lib/composite_underwater.glsl"
 #include "/lib/composite_post.glsl"
-#include "/lib/godrays.glsl"
 
-// SSAO
+vec3 calcEndSkyFull(vec3 worldDir) {
+    float t = clamp(worldDir.y * 0.5 + 0.5, 0.0, 1.0);
+    vec3 baseSky = mix(END_SKY_HORIZON_REF, END_SKY_MID_REF, smoothstep(0.0, 0.45, t));
+    baseSky = mix(baseSky, END_SKY_ZENITH_REF, smoothstep(0.45, 1.0, t));
+    vec3 endEffects = renderEndSky(worldDir, frameTimeCounter);
+    return baseSky + endEffects;
+}
+
+vec3 applyEndColorGrade(vec3 col) {
+    float luma = getLuma(col);
+    col = mix(vec3(luma), col, SATURATION);
+    col = applyVibrance(col, VIBRANCE);
+    col = applyContrast(col, CONTRAST);
+    return col;
+}
+
 float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     float occlusion = 0.0;
     float angle = hash12(uv * viewWidth) * 6.2831853;
@@ -133,6 +108,31 @@ float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     return 1.0 - clamp(occlusion * AO_STRENGTH, 0.0, 1.0);
 }
 
+vec3 reconstructWorldDir(vec2 uv) {
+    vec4 clip = vec4(uv * 2.0 - 1.0, 1.0, 1.0);
+    vec4 viewDir = gbufferProjectionInverse * clip;
+    vec3 dir = normalize((gbufferModelViewInverse * vec4(viewDir.xyz, 0.0)).xyz);
+    return dir;
+}
+
+vec3 applyEndVoidFog(vec3 col, float linDepth, bool isSky, vec3 worldDir) {
+    if (isSky) {
+        float horizonFactor = 1.0 - smoothstep(0.0, END_FOG_SKY_BLEND, abs(worldDir.y));
+        return mix(col, END_FOG_COLOR, horizonFactor * 0.3);
+    }
+    float realDistance = linDepth * far;
+    float fogFactor = 1.0 - exp(-realDistance * END_FOG_DENSITY);
+    fogFactor = clamp(fogFactor, 0.0, END_FOG_MAX);
+    return mix(col, END_FOG_COLOR, fogFactor);
+}
+
+vec3 applyLavaVision(vec3 sceneColor, float linDepth) {
+    float dist = linDepth * far;
+    float sceneVisibility = (1.0 - smoothstep(0.0, 3.0, dist)) * 0.4; 
+    vec3 lavaColor = vec3(0.85, 0.32, 0.05) + 0.04 * sin(frameTimeCounter * 2.0);
+    return mix(lavaColor, sceneColor, sceneVisibility);
+}
+
 /* DRAWBUFFERS:02 */
 
 void main() {
@@ -142,25 +142,22 @@ void main() {
     bool isSky     = rawDepth >= 0.9999;
 
     vec3 sunDir = getSunDirWorld();
-    vec3 viewDirVS = getViewPos(texcoord, 0.0);
-    vec3 rayDir = normalize((gbufferModelViewInverse * vec4(viewDirVS, 0.0)).xyz);
+    vec3 endGradeDir = vec3(0.0, -1.0, 0.0);
 
-    if (eyeInWater > 0.5 && eyeInWater < 1.5) {
+    if (eyeInWater > 1.5) {
+        col = applyLavaVision(col, linDepth);
+    } else if (eyeInWater > 0.5) {
         float rawDepth1 = texture2D(depthtex1, texcoord).r;
         bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
         vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
         vec3 rayDir = normalize(worldPos - cameraPosition);
         col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir, sunDir);
     } else {
-        float sceneDist = linDepth * far;
-
-        #ifndef SKIP_OVERWORLD_ATMOSPHERICS
-            vec4 clouds = renderClouds(rayDir, cameraPosition, sceneDist, isSky, sunDir);
-            col = mix(col, clouds.rgb, clouds.a);
-        #endif
+        vec3 worldDir = reconstructWorldDir(texcoord);
 
         if (!isSky) {
             vec3 viewPos = getViewPos(texcoord, rawDepth);
+            vec3 viewNormal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
 
             vec2 texel = 1.0 / vec2(viewWidth, viewHeight);
             float depthL = texture2D(depthtex0, texcoord - vec2(texel.x, 0.0)).r;
@@ -175,38 +172,32 @@ void main() {
 
             float ao = 1.0;
             if (!isEdge) {
-                vec3 normal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
-                ao = getSSAO(texcoord, viewPos, normal);
+                ao = getSSAO(texcoord, viewPos, viewNormal);
             }
             col *= ao;
+
+            vec3 worldNormal = normalize((gbufferModelViewInverse * vec4(viewNormal, 0.0)).xyz);
+            float skyFacing = clamp(worldNormal.y * 0.5 + 0.5, 0.0, 1.0);
+            vec3 ambientCol = mix(END_SKY_HORIZON_REF, END_SKY_ZENITH_REF, skyFacing);
+            col += ambientCol * END_AMBIENT_STRENGTH * ao;
+        } else {
+            col = calcEndSkyFull(worldDir);
         }
 
-        // GOD RAYS
-        vec3 godrays = computeGodRays(texcoord, rawDepth, sunDir);
-        col += godrays * (isSky ? 0.0 : 1.0);
-
-        #ifndef SKIP_OVERWORLD_ATMOSPHERICS
-            col = applyWeatherFog(col, linDepth);
-            col = applyAerialFog(col, linDepth, isSky, rayDir, sunDir, worldTime, rainStrength);
-            col = applyRenderDistanceFog(col, linDepth, isSky, sunDir, worldTime, rainStrength);
-        #endif
+        col = applyEndVoidFog(col, linDepth, isSky, worldDir);
     }
 
     vec3 bloomContribution = isSky ? vec3(0.0) : getBloomContribution(col, texcoord);
-    #if DEBUG_BLOOM
-        gl_FragData[0] = vec4(bloomContribution * 5.0, 1.0);
-        gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
-        return;
-    #endif
-
     col = col + bloomContribution;
 
     float exposure = computeExposure(sunDir);
     col *= exposure;
 
-    col = applyColorGrade(col, sunDir);
+    col = applyEndColorGrade(col);
     col = acesTonemap(col);
-    col = applySharpen(col, texcoord);
+    
+    col = applySharpen(col, texcoord);  
+    
     col = clamp(col, 0.0, 1.0);
 
     gl_FragData[0] = vec4(col, 1.0);

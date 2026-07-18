@@ -9,7 +9,7 @@ uniform vec3 shadowLightPosition;
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
-varying vec3 shadowPos; //normals don't exist for particles
+varying vec3 shadowPos; 
 
 #include "/distort.glsl"
 
@@ -20,11 +20,11 @@ void main() {
 
 	vec4 viewPos = gl_ModelViewMatrix * gl_Vertex;
 	vec4 playerPos = gbufferModelViewInverse * viewPos;
-	shadowPos = (shadowProjection * (shadowModelView * playerPos)).xyz; //convert to shadow ndc space.
+	shadowPos = (shadowProjection * (shadowModelView * playerPos)).xyz; 
 	float bias = computeBias(shadowPos);
-	shadowPos = distort(shadowPos); //apply shadow distortion.
-	shadowPos = shadowPos * 0.5 + 0.5; //convert from shadow ndc space to shadow screen space.
-	shadowPos.z -= bias; //apply shadow bias.
+	shadowPos = distort(shadowPos); 
+	shadowPos = shadowPos * 0.5 + 0.5; 
+	shadowPos.z -= bias; 
 
 	gl_Position = gl_ProjectionMatrix * viewPos;
 }

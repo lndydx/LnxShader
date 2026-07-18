@@ -5,26 +5,14 @@ attribute vec4 mc_midTexCoord;
 attribute vec4 at_mid_block;
 
 uniform mat4 gbufferModelView;
-uniform mat4 gbufferModelViewInverse;
-uniform mat4 shadowModelView;
-uniform mat4 shadowProjection;
-uniform vec3 shadowLightPosition;
 uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
-varying vec4 shadowPos;
-
- // SSS
-varying vec3 leafViewPos;  
-varying float isLeaf;
 varying float isEmissiveBlock;
 
-#include "/distort.glsl"
-
-// WIND CONFIG 
 #define WAVE_LEAVES_ID   10010
 #define WAVE_GRASS_ID    10011
 #define WAVE_VINE_ID     10012
@@ -62,7 +50,7 @@ vec3 getWindOffset(vec3 worldPos, float mask, float strength, float phase, float
     return vec3(WIND_DIR.x, 0.0, WIND_DIR.y) * combined * strength * mask;
 }
 
-// LAVA: wave function, sama persis kayak versi End/Nether
+// FIX LAVA
 float lavaWaveHeight(vec2 pos, float t) {
     return sin(pos.x * 0.8 + pos.y * 0.5 + t * 1.2) * 0.09
          + sin(pos.x * 1.3 - pos.y * 1.1 + t * 0.9) * 0.05;
@@ -73,14 +61,13 @@ void main() {
     lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
     glcolor  = gl_Color;
 
-    // WIND ANIMATION 
+    int blockId = int(mc_Entity.x);
+    isEmissiveBlock = float(blockId == EMISSIVE_BLOCK_ID);
+
+    // WIND ANIMATION
     vec4 position = gl_Vertex;
     vec3 worldPos = position.xyz + cameraPosition;
     vec3 blockPos = floor(worldPos + 0.001);
-
-    int blockId = int(mc_Entity.x);
-    isLeaf = float(blockId == WAVE_LEAVES_ID);
-    isEmissiveBlock = float(blockId == EMISSIVE_BLOCK_ID);
 
     if (blockId == WAVE_LEAVES_ID) {
         float phase   = hash13(blockPos) * 6.283;
@@ -112,7 +99,7 @@ void main() {
         float freqMul = hash13(blockPos + 97.0);
         position.xyz += getWindOffset(worldPos, topMask, WIND_DRIPLEAF_STRENGTH, phase, freqMul);
     }
-    // LAVA: wave displacement
+    // FIX LAVA: wave displacement untuk lava block
     else if (blockId == WAVE_LAVA_ID) {
         vec2 wavePos = mod(worldPos.xz, 8192.0);
         float t = frameTimeCounter;
@@ -120,35 +107,6 @@ void main() {
         position.y += wave;
     }
 
-    // SHADOW 
-    vec3 viewNormal = gl_NormalMatrix * gl_Normal;
-    float lightDot = dot(normalize(shadowLightPosition), normalize(viewNormal));
-    #ifdef EXCLUDE_FOLIAGE
-        float id = mc_Entity.x;
-        bool isFoliage = (id == 10000.0) || (id >= 10010.0 && id <= 10016.0);
-        if (isFoliage) lightDot = 1.0;
-    #endif
-
     vec4 viewPos = gl_ModelViewMatrix * position;
-    leafViewPos = viewPos.xyz;
-
-    if (lightDot > 0.0) {
-        vec4 playerPos = gbufferModelViewInverse * viewPos;
-        shadowPos = shadowProjection * (shadowModelView * playerPos);
-        float bias = computeBias(shadowPos.xyz);
-        shadowPos.xyz = distort(shadowPos.xyz);
-        shadowPos.xyz = shadowPos.xyz * 0.5 + 0.5;
-        #ifdef NORMAL_BIAS
-            vec4 normal = shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0);
-            shadowPos.xyz += normal.xyz / normal.w * bias;
-        #else
-            shadowPos.z -= bias / abs(lightDot);
-        #endif
-    }
-    else {
-        lmcoord.y *= SHADOW_BRIGHTNESS;
-        shadowPos = vec4(0.0);
-    }
-    shadowPos.w = lightDot;
     gl_Position = gl_ProjectionMatrix * viewPos;
 }

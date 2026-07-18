@@ -67,10 +67,10 @@ float getGodRayTimeIntensity() {
 vec3 getGodRayColor() {
     float wt = float(worldTime);
 
-    vec3 dawnGod   = vec3(1.00, 0.95, 0.55);
-    vec3 dayGod    = vec3(1.00, 0.92, 0.55);
+    vec3 dawnGod = vec3(1.00, 0.95, 0.55);
+    vec3 dayGod = vec3(1.00, 0.92, 0.55);
     vec3 sunsetGod = vec3(1.00, 0.78, 0.25);
-    vec3 nightGod  = vec3(0.75, 0.80, 0.95);  
+    vec3 nightGod = vec3(0.75, 0.80, 0.95);  
 
     vec3 col = dawnGod;
     col = mix(col, dayGod,    smoothstep(0.0,     1500.0, wt));

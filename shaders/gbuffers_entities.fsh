@@ -8,6 +8,7 @@ uniform sampler2D shadowcolor0;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D texture;
+uniform vec4 entityColor; // rgb = tint warna (merah pas kena hit), a = kekuatan blend
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
@@ -58,6 +59,11 @@ void main() {
 	}
 	#endif
 	color *= texture2D(lightmap, lm);
+
+	// HIT FLASH — blend ke warna entityColor (merah pas kena damage,
+	// juga dipake buat efek lain kayak creeper flash putih pas mau meledak,
+	// zombie/skeleton freeze biru pas kena potion of harming, dll)
+	color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
 
 /* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor

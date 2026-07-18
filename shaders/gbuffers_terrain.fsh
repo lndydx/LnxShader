@@ -17,7 +17,8 @@ varying vec4 glcolor;
 varying vec4 shadowPos;
 
 varying vec3 leafViewPos;  
-varying float isLeaf;      
+varying float isLeaf;
+varying float isEmissiveBlock;
 
 const bool shadowcolor0Nearest = true;
 const bool shadowtex0Nearest = true;
@@ -28,8 +29,20 @@ const bool shadowtex1Nearest = true;
 #include "/lib/leaf_sss.glsl"
 #endif
 
+#define TORCH_WARM_TINT      vec3(1.000, 1.000, 0.898)
+#define TORCH_WARM_STRENGTH  0.55
+#define TORCH_SPREAD_CURVE   0.8
+#define EMISSIVE_GLOW_BOOST  1.4
+
 void main() {
-	vec4 color = texture2D(texture, texcoord) * glcolor;
+	vec4 texColor = texture2D(texture, texcoord);
+
+	float glLuma = dot(glcolor.rgb, vec3(0.299, 0.587, 0.114));
+	vec3 glFlat  = vec3(max(glLuma, 1.0)) * EMISSIVE_GLOW_BOOST;
+	vec3 glFinal = mix(glcolor.rgb, glFlat, isEmissiveBlock);
+
+	vec4 color = vec4(texColor.rgb * glFinal, texColor.a * glcolor.a);
+
 	vec2 lm = lmcoord;
 	#ifdef SHADOWS
 	if (shadowPos.w > 0.0) {
@@ -56,6 +69,9 @@ void main() {
 	#define BLOCKLIGHT_RADIUS 1.8
 	lm.x = pow(lm.x, BLOCKLIGHT_RADIUS);
 	color *= texture2D(lightmap, lm);
+
+	float torchStrength = pow(lmcoord.x, TORCH_SPREAD_CURVE);
+	color.rgb = mix(color.rgb, color.rgb * TORCH_WARM_TINT, torchStrength * TORCH_WARM_STRENGTH);
 
 	#if defined LEAF_SSS
 	if (isLeaf > 0.5) {

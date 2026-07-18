@@ -4,6 +4,7 @@ uniform sampler2D colortex0;
 uniform sampler2D colortex1;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
+uniform int isEyeInWater;
 
 uniform mat4 gbufferProjection;
 uniform mat4 gbufferProjectionInverse;
@@ -20,12 +21,12 @@ varying vec2 texcoord;
 #include "/lib/composite_common.glsl"
 
 #define SSR_MAX_STEPS 192
-#define SSR_INITIAL_STEP 0.50
+#define SSR_INITIAL_STEP 0.08
 #define SSR_STEP_GROWTH 1.30 
 #define SSR_MAX_DIST 250.0
 #define SSR_THICKNESS_MIN 1.00
 #define SSR_THICKNESS_SCALE 3.00
-#define SSR_REFINE_STEPS 20
+#define SSR_REFINE_STEPS 8
 
 float ditherPattern(vec2 uv) {
     return fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
@@ -100,14 +101,21 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
 /* DRAWBUFFERS:3 */
 
 void main() {
-    vec4 normalData = texture2D(colortex1, texcoord);
-
-    if (normalData.a < 0.95) {
+    if (isEyeInWater == 1) {
         gl_FragData[0] = vec4(0.0);
         return;
     }
 
+    vec4 normalData = texture2D(colortex1, texcoord);
+
     float rawDepth = texture2D(depthtex0, texcoord).r;
+    float solidDepth = texture2D(depthtex1, texcoord).r;
+
+    if (normalData.a < 0.95 || abs(rawDepth - solidDepth) < 0.0001) {
+        gl_FragData[0] = vec4(0.0);
+        return;
+    }
+
     vec3 viewPos = getViewPos(texcoord, rawDepth);
     vec3 N = normalize(normalData.rgb * 2.0 - 1.0);
     vec3 V = normalize(-viewPos);
