@@ -19,11 +19,11 @@ varying vec2 texcoord;
 
 #include "/lib/composite_common.glsl"
 
-#define SSR_MAX_STEPS 192
+#define SSR_MAX_STEPS 200
 #define SSR_INITIAL_STEP 0.50
 #define SSR_STEP_GROWTH 1.30 
 #define SSR_MAX_DIST 250.0
-#define SSR_THICKNESS_MIN 1.00
+#define SSR_THICKNESS_MIN 2.00
 #define SSR_THICKNESS_SCALE 3.00
 #define SSR_REFINE_STEPS 20
 

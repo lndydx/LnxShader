@@ -98,7 +98,7 @@ void main() {
     vec3 N = normalize(viewNormal);
     vec3 viewDir = normalize(viewPos);
 
-    vec3 geoNormal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
+    vec3 geoNormal = normalize(flatNormal);
     if (dot(geoNormal, viewDir) > 0.0) geoNormal = -geoNormal;
 
     vec3 skyCol = skyColorByWorldTime(worldTime, sunHeight, rainStrength);

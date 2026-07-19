@@ -38,9 +38,12 @@ void main() {
     float t = frameTimeCounter;
 
     vec4 displacedVertex = gl_Vertex;
-    vec3 normal = vec3(0.0, 1.0, 0.0);
+    vec3 geometryNormal = normalize(gl_Normal);
+    vec3 normal = geometryNormal;
 
-    if (isRealWater > 0.5) {
+    bool isHorizontalSurface = abs(geometryNormal.y) > 0.5;
+
+    if (isRealWater > 0.5 && isHorizontalSurface) {
         vec2 wavePos = mod(absoluteWorldPos.xz, 8192.0);
 
         float wave = waveHeight(wavePos, t);
@@ -55,7 +58,7 @@ void main() {
         normal = normalize(vec3((hL - hR) / (2.0 * eps), 1.0, (hD - hU) / (2.0 * eps)));
     }
 
-    flatNormal = normalize(gl_NormalMatrix * vec3(0.0, 1.0, 0.0));
+    flatNormal = normalize(gl_NormalMatrix * geometryNormal);
     viewNormal = normalize(gl_NormalMatrix * normal);
 
     vec4 viewPosition = gl_ModelViewMatrix * displacedVertex;
