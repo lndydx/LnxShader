@@ -7,6 +7,7 @@ uniform sampler2D depthtex1;
 uniform sampler2D lightmap;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
+uniform sampler2D colortex1;
 
 uniform float near;
 uniform float far;
@@ -29,6 +30,7 @@ uniform mat4 shadowProjection;
 uniform mat4 gbufferModelView;
 uniform float thunderStrength;
 uniform mat4 gbufferProjection;
+uniform float customWetness;
 
 #include "/distort.glsl"
 
@@ -104,6 +106,7 @@ varying float eyeInWater;
 #include "/lib/composite_post.glsl"
 #include "/lib/godrays.glsl"
 #include "/lib/lens_flare.glsl"
+#include "/lib/wetness.glsl"
 
 // SSAO
 float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
@@ -179,12 +182,21 @@ void main() {
 
             bool isEdge = depthDelta > 0.0015;
 
+            vec3 viewPosL = getViewPos(texcoord - vec2(texel.x, 0.0), depthL);
+            vec3 viewPosR = getViewPos(texcoord + vec2(texel.x, 0.0), depthR);
+            vec3 viewPosD = getViewPos(texcoord - vec2(0.0, texel.y), depthD);
+            vec3 viewPosU = getViewPos(texcoord + vec2(0.0, texel.y), depthU);
+            vec3 smoothNormal = normalize(cross(viewPosR - viewPosL, viewPosU - viewPosD));
+
             float ao = 1.0;
             if (!isEdge) {
-                vec3 normal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
-                ao = getSSAO(texcoord, viewPos, normal);
+                ao = getSSAO(texcoord, viewPos, smoothNormal);
             }
             col *= ao;
+
+            vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
+            float skylight = texture2D(colortex1, texcoord).a;   // <-- TAMBAH INI
+            col = applyWetSurface(col, viewPos, worldPos, customWetness, sunDir, smoothNormal, skylight);
         }
 
         // GOD RAYS 

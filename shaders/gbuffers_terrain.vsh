@@ -16,6 +16,7 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
+varying float skylightRaw; 
 
  // SSS
 varying vec3 leafViewPos;  
@@ -36,8 +37,8 @@ varying float isEmissiveBlock;
 #define EMISSIVE_BLOCK_ID 10030
 
 #define WIND_LITTER_STRENGTH   0.04
-#define WIND_DRIPLEAF_STRENGTH 0.08
-#define WIND_LEAVES_STRENGTH   0.08
+#define WIND_DRIPLEAF_STRENGTH 0.09
+#define WIND_LEAVES_STRENGTH   0.10
 #define WIND_GRASS_STRENGTH    0.15
 #define WIND_VINE_STRENGTH     0.08
 #define WIND_DIR vec2(0.8, 0.5)
@@ -62,7 +63,7 @@ vec3 getWindOffset(vec3 worldPos, float mask, float strength, float phase, float
     return vec3(WIND_DIR.x, 0.0, WIND_DIR.y) * combined * strength * mask;
 }
 
-// LAVA: wave function, sama persis kayak versi End/Nether
+// LAVA
 float lavaWaveHeight(vec2 pos, float t) {
     return sin(pos.x * 0.8 + pos.y * 0.5 + t * 1.2) * 0.09
          + sin(pos.x * 1.3 - pos.y * 1.1 + t * 0.9) * 0.05;
@@ -72,6 +73,7 @@ void main() {
     texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
     lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
     glcolor  = gl_Color;
+    skylightRaw = lmcoord.y;
 
     // WIND ANIMATION 
     vec4 position = gl_Vertex;

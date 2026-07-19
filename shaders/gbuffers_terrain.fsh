@@ -1,7 +1,7 @@
 #version 120
 
 #define COLORED_SHADOWS 1
-#define SHADOW_BRIGHTNESS 0.75
+#define SHADOW_BRIGHTNESS 0.80
 #define LEAF_SSS 
 
 uniform sampler2D lightmap;
@@ -15,6 +15,7 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
+varying float skylightRaw;   
 
 varying vec3 leafViewPos;  
 varying float isLeaf;
@@ -83,5 +84,5 @@ void main() {
 
 	/* DRAWBUFFERS:01 */
 	gl_FragData[0] = color; 
-	gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); 
+	gl_FragData[1] = vec4(0.5, 0.5, 1.0, skylightRaw);
 }
