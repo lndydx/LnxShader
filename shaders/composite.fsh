@@ -8,6 +8,7 @@ uniform sampler2D lightmap;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D colortex1;
+uniform sampler2D colortex4;
 
 uniform float near;
 uniform float far;
@@ -195,7 +196,7 @@ void main() {
             col *= ao;
 
             vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
-            float skylight = texture2D(colortex1, texcoord).a;   // <-- TAMBAH INI
+            float skylight = texture2D(colortex4, texcoord).r;
             col = applyWetSurface(col, viewPos, worldPos, customWetness, sunDir, smoothNormal, skylight);
         }
 

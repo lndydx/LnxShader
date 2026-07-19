@@ -82,7 +82,8 @@ void main() {
 	}
 	#endif
 
-	/* DRAWBUFFERS:01 */
+	/* DRAWBUFFERS:014 */
 	gl_FragData[0] = color; 
-	gl_FragData[1] = vec4(0.5, 0.5, 1.0, skylightRaw);
+	gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0);
+	gl_FragData[2] = vec4(skylightRaw, 0.0, 0.0, 1.0);
 }

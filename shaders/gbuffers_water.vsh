@@ -18,6 +18,7 @@ varying vec3 viewNormal;
 varying vec3 flatNormal;
 varying float isRealWater;
 varying vec4 shadowPos;
+varying vec2 waterWorldXZ;
 
 #include "/distort.glsl"
 
@@ -34,6 +35,8 @@ void main() {
     if (at_mid_block.x != 0.0 || at_mid_block.y != 0.0 || at_mid_block.z != 0.0) {
         absoluteWorldPos = floor(cameraPosition) + at_mid_block.xyz / 64.0 + gl_Vertex.xyz;
     }
+
+    waterWorldXZ = absoluteWorldPos.xz;
 
     float t = frameTimeCounter;
 

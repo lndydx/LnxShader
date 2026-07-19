@@ -4,11 +4,13 @@ uniform sampler2D texture;
 uniform sampler2D lightmap;
 uniform float alphaTestRef = 0.1;
 uniform mat4 gbufferModelViewInverse;
+uniform mat4 gbufferModelView;
 uniform vec3 sunPosition;
 uniform int worldTime;
 uniform float rainStrength;
 uniform int isEyeInWater;
 uniform sampler2D shadowtex1;
+uniform float frameTimeCounter;
 
 varying vec2 texcoord;
 varying vec2 lmcoord;
@@ -18,6 +20,7 @@ varying vec3 viewNormal;
 varying vec3 flatNormal;
 varying float isRealWater;
 varying vec4 shadowPos;
+varying vec2 waterWorldXZ;
 
 const bool shadowtex1Nearest = true;
 
@@ -26,6 +29,11 @@ const bool shadowtex1Nearest = true;
 #define STORM_WATER_COLOR vec3(0.34, 0.38, 0.4)
 #define DAY_HEIGHT_THRESHOLD 0.5
 #define NIGHT_HEIGHT_THRESHOLD -0.3
+
+float waveHeight(vec2 pos, float t) {
+    return sin(pos.x * 0.8 + pos.y * 0.5 + t * 1.2) * 0.09
+         + sin(pos.x * 1.3 - pos.y * 1.1 + t * 0.9) * 0.05;
+}
 
 vec3 skyColorByWorldTime(int wt, float sunHeight, float rain) {
     vec3 night   = vec3(0.26, 0.28, 0.53);
@@ -95,11 +103,26 @@ void main() {
     vec3 stormTint = mix(partialDesat, STORM_WATER_COLOR, 0.45);
     baseColor.rgb  = mix(clearTint, stormTint, rainStrength);
 
-    vec3 N = normalize(viewNormal);
     vec3 viewDir = normalize(viewPos);
 
     vec3 geoNormal = normalize(flatNormal);
     if (dot(geoNormal, viewDir) > 0.0) geoNormal = -geoNormal;
+
+    vec3 worldFlatNormal = normalize((gbufferModelViewInverse * vec4(geoNormal, 0.0)).xyz);
+    bool isHorizontalSurface = abs(worldFlatNormal.y) > 0.5;
+
+    vec3 N = normalize(viewNormal);
+    if (isHorizontalSurface) {
+        float t = frameTimeCounter;
+        vec2 wavePos = mod(waterWorldXZ, 8192.0);
+        float eps = 0.15;
+        float hL = waveHeight(wavePos - vec2(eps, 0.0), t);
+        float hR = waveHeight(wavePos + vec2(eps, 0.0), t);
+        float hD = waveHeight(wavePos - vec2(0.0, eps), t);
+        float hU = waveHeight(wavePos + vec2(0.0, eps), t);
+        vec3 waveNormalWorld = normalize(vec3((hL - hR) / (2.0 * eps), 1.0, (hD - hU) / (2.0 * eps)));
+        N = normalize(mat3(gbufferModelView) * waveNormalWorld);
+    }
 
     vec3 skyCol = skyColorByWorldTime(worldTime, sunHeight, rainStrength);
     vec3 skyColClamped = max(skyCol, vec3(0.05, 0.06, 0.09));
@@ -127,7 +150,6 @@ void main() {
     vec3 caveAmbient = baseColor.rgb * 0.35;
     vec3 ambientReflection = mix(caveAmbient, reflectionColor, skyVisibility);
 
-    vec3 worldFlatNormal = normalize((gbufferModelViewInverse * vec4(geoNormal, 0.0)).xyz);
     float verticalness = 1.0 - abs(worldFlatNormal.y);
 
     float reflectWeight = fresnel * float(isEyeInWater == 0);
