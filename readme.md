@@ -45,4 +45,4 @@ Built on top of [null511](https://github.com/null511)'s shader template.
 
 ## License
 
-Unlicense — see [LICENSE](LICENSE). Free for any use, commercial or not.
+ MIT — see [LICENSE](LICENSE). 
