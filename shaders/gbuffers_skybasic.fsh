@@ -17,8 +17,8 @@ varying vec4 starData;
 
 const float sunPathRotation = 30.0;
 
-#define SKY_SATURATION 1.10
-#define SKY_CONTRAST   1.12
+#define SKY_SATURATION 1.15
+#define SKY_CONTRAST   1.15
 #define SUN_GLOW_INTENSITY 0.28
 #define SUN_DISC_SIZE 34.0
 #define MOON_GLOW_INTENSITY 0.10

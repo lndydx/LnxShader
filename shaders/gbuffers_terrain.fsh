@@ -1,7 +1,7 @@
 #version 120
 
 #define COLORED_SHADOWS 1
-#define SHADOW_BRIGHTNESS 0.80
+#define SHADOW_BRIGHTNESS 0.70
 #define LEAF_SSS 
 
 uniform sampler2D lightmap;

@@ -31,7 +31,7 @@ float fbm3(vec2 p) {
 }
 
 // GALAXY 
-#define GALAXY_AZIMUTH_ROTATE 90.0
+#define GALAXY_AZIMUTH_ROTATE 90.0 //[0.0 30.0 60.0 90.0 120.0 150.0 180.0 210.0 240.0 270.0 300.0 330.0]
 #define GALAXY_MORPH_SPEED 0.009
 
 vec3 getGalaxyDir() {

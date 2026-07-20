@@ -1,1 +1,29 @@
 screen.SHADOW=Shadow Setting
+screen.CLOUDS=Cloud Settings
+screen.NIGHT_SKY=Night Sky Settings
+screen.WETNESS=Wetness Settings
+
+option.CLOUD_COVERAGE=Cloud Coverage
+option.CLOUD_COVERAGE.comment=How much of the sky is covered by clouds.
+option.CLOUD_SOFTNESS=Cloud Softness
+option.CLOUD_SOFTNESS.comment=How soft or sharp the cloud edges appear.
+option.CLOUD_SPEED=Cloud Speed
+option.CLOUD_SPEED.comment=How fast clouds drift across the sky.
+
+option.CONSTELLATION_SEED=Constellation Seed
+option.CONSTELLATION_SEED.comment=Changes the pattern used to place constellations.
+option.CONSTELLATION_COUNT=Constellation Count
+option.CONSTELLATION_COUNT.comment=Number of constellations in the night sky. Higher costs more performance.
+option.GALAXY_AZIMUTH_ROTATE=Nebula Rotation
+option.GALAXY_AZIMUTH_ROTATE.comment=Rotates the position of the galaxy/nebula band in the sky.
+
+option.ENABLE_WETNESS=Enable Wetness
+option.ENABLE_WETNESS.comment=Toggles the rain puddle/wet surface effect entirely.
+option.WETNESS_DARKEN=Wetness Darkening
+option.WETNESS_DARKEN.comment=How much wet surfaces darken during rain.
+option.WETNESS_SKY_STRENGTH=Wetness Sky Reflection
+option.WETNESS_SKY_STRENGTH.comment=Strength of sky reflection on wet surfaces.
+option.PUDDLE_SCALE=Puddle Size
+option.PUDDLE_SCALE.comment=Size/frequency of puddle patches.
+option.PUDDLE_RIPPLE_STRENGTH=Puddle Ripple Strength
+option.PUDDLE_RIPPLE_STRENGTH.comment=Intensity of ripple distortion on puddles.

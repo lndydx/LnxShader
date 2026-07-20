@@ -41,11 +41,11 @@ varying float eyeInWater;
 // CONFIGURATION
 #define CLOUD_HEIGHT 192.0
 #define CLOUD_SCALE 0.02
-#define CLOUD_SPEED 0.001
+#define CLOUD_SPEED 0.0010 //[0.0000 0.0002 0.0004 0.0006 0.0008 0.0010 0.0015 0.0020 0.0030 0.0040 0.0050]
 #define CLOUD_WARP_SCALE 0.02
 #define CLOUD_WARP_SPEED 0.05
-#define CLOUD_COVERAGE 0.48
-#define CLOUD_SOFTNESS 0.3
+#define CLOUD_COVERAGE 0.48 //[0.20 0.24 0.28 0.32 0.36 0.40 0.44 0.48 0.52 0.56 0.60 0.64 0.68 0.72 0.76 0.80]
+#define CLOUD_SOFTNESS 0.30 //[0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60]
 #define CLOUD_MAX_DISTANCE 750.0
 #define CLOUD_SHADOW_OFFSET 6.0
 #define CLOUD_SHADOW_STRENGTH 0.35
@@ -62,9 +62,9 @@ varying float eyeInWater;
 #define WEATHER_FOG_DENSITY 0.006
 #define WEATHER_FOG_MAX 0.22
 
-#define TARGET_LUMA 0.12
-#define EXPOSURE_MIN 0.9
-#define EXPOSURE_MAX 1.3
+#define TARGET_LUMA 0.14
+#define EXPOSURE_MIN 1.0
+#define EXPOSURE_MAX 1.6
 #define EXPOSURE_ADAPT_RATE 1.0
 #define NIGHT_TARGET_LUMA_MULT   0.9
 #define NIGHT_EXPOSURE_MIN_MULT  0.7
@@ -80,8 +80,8 @@ varying float eyeInWater;
 #define BLOOM_RADIUS_PX_WIDE 1.2
 
 #define SATURATION 1.4
-#define VIBRANCE 0.35
-#define CONTRAST 0.15
+#define VIBRANCE 0.45
+#define CONTRAST 0.30
 #define SHARPEN_STRENGTH 0.1
 
 #define DAY_HEIGHT_THRESHOLD 0.40      
@@ -92,6 +92,8 @@ varying float eyeInWater;
 #define AO_STRENGTH 0.6
 #define AO_SAMPLES 5
 #define AO_BIAS 0.03
+
+#define ENABLE_WETNESS
 
 #ifndef PPT_NONE
 #define PPT_NONE 0
@@ -195,9 +197,16 @@ void main() {
             }
             col *= ao;
 
-            vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
-            float skylight = texture2D(colortex4, texcoord).r;
-            col = applyWetSurface(col, viewPos, worldPos, customWetness, sunDir, smoothNormal, skylight);
+            float solidDepth = texture2D(depthtex1, texcoord).r;
+            bool isWaterSurface = abs(rawDepth - solidDepth) > 0.0001;
+
+            #ifdef ENABLE_WETNESS
+            if (!isWaterSurface) {
+                vec3 worldPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
+                float skylight = texture2D(colortex4, texcoord).r;
+                col = applyWetSurface(col, viewPos, worldPos, customWetness, sunDir, smoothNormal, skylight);
+            }
+            #endif
         }
 
         // GOD RAYS 
