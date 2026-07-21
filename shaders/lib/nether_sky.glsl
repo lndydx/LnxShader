@@ -64,14 +64,28 @@ vec3 getNetherBiomeColor(int biomeId) {
     return COL_NETHER_DEFAULT;
 }
 
-// AMBIENT HAZE 
+const vec3 FILL_NETHER_WASTES    = vec3(0.130, 0.048, 0.038);
+const vec3 FILL_SOUL_SAND_VALLEY = vec3(0.035, 0.115, 0.140);
+const vec3 FILL_CRIMSON_FOREST   = vec3(0.140, 0.030, 0.048);
+const vec3 FILL_WARPED_FOREST    = vec3(0.045, 0.085, 0.130);
+const vec3 FILL_BASALT_DELTAS    = vec3(0.075, 0.072, 0.082);
+const vec3 FILL_NETHER_DEFAULT   = vec3(0.100, 0.045, 0.040);
+
+vec3 getNetherAmbientFillColor(int biomeId) {
+    if (biomeId == BIOME_NETHER_WASTES)    return FILL_NETHER_WASTES;
+    if (biomeId == BIOME_SOUL_SAND_VALLEY) return FILL_SOUL_SAND_VALLEY;
+    if (biomeId == BIOME_CRIMSON_FOREST)   return FILL_CRIMSON_FOREST;
+    if (biomeId == BIOME_WARPED_FOREST)    return FILL_WARPED_FOREST;
+    if (biomeId == BIOME_BASALT_DELTAS)    return FILL_BASALT_DELTAS;
+    return FILL_NETHER_DEFAULT;
+}
+
 #define NETHER_AMBIENT_STRENGTH 0.05
 
 vec3 renderNetherAmbientGlow(vec3 biomeColor) {
     return biomeColor * NETHER_AMBIENT_STRENGTH;
 }
 
-// SMOKE 
 #define SMOKE_DUST_WARP_SCALE   3.0
 #define SMOKE_DUST_WARP_AMOUNT  0.05
 #define SMOKE_DUST_NOISE_SCALE  1.6

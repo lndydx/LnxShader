@@ -1,6 +1,16 @@
 #ifndef COMPOSITE_POST_GLSL
 #define COMPOSITE_POST_GLSL
 
+#ifndef TARGET_LUMA
+#define TARGET_LUMA 0.18
+#define NIGHT_TARGET_LUMA_MULT 0.5
+#define EXPOSURE_MIN 0.5
+#define NIGHT_EXPOSURE_MIN_MULT 0.3
+#define EXPOSURE_MAX 4.0
+#define NIGHT_EXPOSURE_MAX_MULT 0.6
+#define EXPOSURE_ADAPT_RATE 2.0
+#endif
+
 vec3 getWhiteBalance(vec3 sunDir) {
     vec3 neutral = vec3(1.0, 1.0, 1.0);
     vec3 warm    = vec3(1.10, 1.00, 0.85);

@@ -5,6 +5,7 @@ uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D lightmap;
+uniform sampler2D noisetex;
 
 uniform float near;
 uniform float far;
@@ -26,22 +27,19 @@ uniform int biome_category;
 varying vec2 texcoord;
 varying float eyeInWater;
 
-#define TARGET_LUMA 0.12
-#define EXPOSURE_MIN 0.6
-#define EXPOSURE_MAX 1.0
-#define EXPOSURE_ADAPT_RATE 1.0
-#define NIGHT_TARGET_LUMA_MULT   0.9
-#define NIGHT_EXPOSURE_MIN_MULT  0.7
-#define NIGHT_EXPOSURE_MAX_MULT  0.9
-#define EXPOSURE_ENCODE_MIN (EXPOSURE_MIN * NIGHT_EXPOSURE_MIN_MULT)
-#define EXPOSURE_ENCODE_MAX EXPOSURE_MAX
+#define EYE_ADJUST_NETHER_DARK      2.5
+#define EYE_ADJUST_NETHER_LIGHT     1.5
+#define NETHER_TARGET_LUMA          0.10
+#define NETHER_EXPOSURE_ADAPT_RATE  1.0
+#define EXPOSURE_ENCODE_MIN (EYE_ADJUST_NETHER_LIGHT * 0.4)
+#define EXPOSURE_ENCODE_MAX EYE_ADJUST_NETHER_DARK
 
-#define BLOOM_THRESHOLD 0.70
+#define BLOOM_THRESHOLD 0.72
 #define BLOOM_KNEE 0.35
-#define BLOOM_INTENSITY 1.0
+#define BLOOM_INTENSITY 0.6
 #define BLOOM_CORE_BOOST 1.2
 #define BLOOM_RADIUS_PX 0.4
-#define BLOOM_RADIUS_PX_WIDE 1.2
+#define BLOOM_RADIUS_PX_WIDE 1.0
 
 #define SATURATION 1.4
 #define VIBRANCE 0.35
@@ -51,20 +49,15 @@ varying float eyeInWater;
 #define NIGHT_HEIGHT_THRESHOLD -0.30
 
 #define AO_RADIUS 0.2
-#define AO_STRENGTH 0.50
+#define AO_STRENGTH 0.55
 #define AO_SAMPLES 5
 #define AO_BIAS 0.03
-
-#define NETHER_FOG_BEGIN 30.0
-#define NETHER_FOG_DENSITY 0.009
-#define NETHER_FOG_MAX 0.90
 
 #include "/lib/composite_common.glsl"
 #include "/lib/composite_post.glsl"
 #include "/lib/nether_sky.glsl" 
 #include "/lib/nether_fog.glsl" 
 
-// SSAO
 float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     float occlusion = 0.0;
     float angle = hash12(uv * viewWidth) * 6.2831853;
@@ -91,8 +84,6 @@ float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     return 1.0 - clamp(occlusion * AO_STRENGTH, 0.0, 1.0);
 }
 
-
-
 vec3 applyLavaVision(vec3 sceneColor, float linDepth) {
     float dist = linDepth * far;
     float sceneVisibility = (1.0 - smoothstep(0.0, 3.0, dist)) * 0.4; 
@@ -108,6 +99,20 @@ vec3 getWorldRayDir(vec2 uv) {
     return worldDir;
 }
 
+float computeNetherExposure() {
+    float avgLuma = max(sampleAverageLuminance(), 0.0001);
+
+    float eyeCeiling = mix(EYE_ADJUST_NETHER_DARK, EYE_ADJUST_NETHER_LIGHT, smoothstep(0.02, 0.20, avgLuma));
+    float targetExposure = clamp(NETHER_TARGET_LUMA / avgLuma, EYE_ADJUST_NETHER_LIGHT * 0.4, eyeCeiling);
+
+    vec2 historyTexel = vec2(0.5 / viewWidth, 0.5 / viewHeight);
+    float lastExposureRaw = texture2D(colortex2, historyTexel).r;
+    float lastExposure = decodeExposure(lastExposureRaw);
+
+    float adaptSpeed = clamp(1.0 - exp(-max(frameTime, 0.0001) * NETHER_EXPOSURE_ADAPT_RATE), 0.0, 1.0);
+    return mix(lastExposure, targetExposure, adaptSpeed);
+}
+
 /* DRAWBUFFERS:02 */
 
 void main() {
@@ -115,8 +120,6 @@ void main() {
     float rawDepth = texture2D(depthtex0, texcoord).r;
     float linDepth = linearizeDepth(rawDepth);
     bool isSky     = rawDepth >= 0.9999;
-
-    vec3 sunDir = getSunDirWorld();
 
     if (eyeInWater > 1.5) {
         col = applyLavaVision(col, linDepth);
@@ -151,7 +154,6 @@ void main() {
         vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
         col = applyNetherVolumetricFog(col, cameraPosition, worldPos, isSky, moodColor);
 
-        vec3 sunDir = getSunDirWorld();
         vec3 rayDir = getWorldRayDir(texcoord);
         vec3 netherAtmo = renderNetherAtmosphere(rayDir, frameTimeCounter, biome_category);
         col += netherAtmo * (isSky ? 1.0 : 0.15);
@@ -160,7 +162,7 @@ void main() {
     vec3 bloomContribution = isSky ? vec3(0.0) : getBloomContribution(col, texcoord);
     col = col + bloomContribution;
 
-    float exposure = computeExposure(sunDir);
+    float exposure = computeNetherExposure();
     col *= exposure;
 
     float netherLuma = getLuma(col);

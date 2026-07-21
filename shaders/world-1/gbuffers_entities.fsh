@@ -1,5 +1,8 @@
 #version 120
 
+uniform int biome_category;
+
+#include "/lib/nether_sky.glsl"
 #include "/lib/nether_lighting.glsl"
 
 uniform sampler2D lightmap;
@@ -16,7 +19,7 @@ void main() {
 	color *= texture2D(lightmap, lmcoord);
 
 	color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
-	color.rgb = applyNetherAmbientFill(color.rgb);
+	color.rgb = applyNetherAmbientFill(color.rgb, getNetherAmbientFillColor(biome_category));
 
 /* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor

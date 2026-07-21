@@ -1,5 +1,7 @@
 #version 120
 
+uniform int biome_category;
+
 uniform sampler2D texture;
 uniform sampler2D lightmap;
 uniform float alphaTestRef = 0.1;
@@ -16,6 +18,7 @@ varying float isRealWater;
 varying float isLava;
 
 #include "/lib/ggx.glsl"
+#include "/lib/nether_sky.glsl"
 #include "/lib/nether_lighting.glsl"
 
 #define LAVA_EMISSIVE_BOOST 2.4
@@ -52,5 +55,5 @@ void main() {
         return;
     }
 
-    gl_FragData[0] = vec4(applyNetherAmbientFill(baseColor.rgb * lm), baseColor.a); 
+    gl_FragData[0] = vec4(applyNetherAmbientFill(baseColor.rgb * lm, getNetherAmbientFillColor(biome_category)), baseColor.a); 
 }

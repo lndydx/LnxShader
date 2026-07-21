@@ -12,6 +12,24 @@
 #define NETHER_FOG_WARM_MIX 0.20
 #define NETHER_FOG_WARM_COLOR vec3(0.369, 0.165, 0.012)
 
+#define NETHER_FOG_PATCH_SCALE    1.0
+#define NETHER_FOG_PATCH_SPEED    vec2(0.021, 0.019)
+#define NETHER_FOG_PATCH_STRENGTH 0.5
+
+vec3 applyFogPatchiness(vec3 fogColor) {
+    vec2 uv = frameTimeCounter * NETHER_FOG_PATCH_SPEED * NETHER_FOG_PATCH_SCALE;
+    float n = texture2D(noisetex, uv).r;
+    n = n * n - 0.1;
+    if (n <= 0.0) return fogColor;
+
+    vec3 brightFog = vec3(
+        fogColor.r * (n + 1.0),
+        mix(fogColor.g, max(fogColor.r, fogColor.b * 2.0), n),
+        fogColor.b
+    );
+    return mix(fogColor, brightFog, NETHER_FOG_PATCH_STRENGTH);
+}
+
 vec3 applyNetherVolumetricFog(vec3 col, vec3 camPos, vec3 worldPos, bool isSky, vec3 moodColor) {
     if (isSky) return col;
 
@@ -36,11 +54,10 @@ vec3 applyNetherVolumetricFog(vec3 col, vec3 camPos, vec3 worldPos, bool isSky, 
     float fogFactor = 1.0 - exp(-density * NETHER_FOG_DENSITY_MULT);
     fogFactor = clamp(fogFactor, 0.0, NETHER_FOG_MAX_OPACITY);
 
-    // In-scattering murah: fog "menyerap" warna hangat proporsional ke terangnya
-    // scene di balik piksel itu -- proxy layar buat kedekatan ke lava.
     float sceneLuma = getLuma(col);
     float warmBleed = smoothstep(NETHER_FOG_WARM_LOW, NETHER_FOG_WARM_HIGH, sceneLuma);
     vec3 fogColor = mix(moodColor, NETHER_FOG_WARM_COLOR, warmBleed * NETHER_FOG_WARM_MIX);
+    fogColor = applyFogPatchiness(fogColor);
 
     return mix(col, fogColor, fogFactor);
 }

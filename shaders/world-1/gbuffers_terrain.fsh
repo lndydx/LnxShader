@@ -1,6 +1,6 @@
 #version 120
 
-#include "/lib/nether_lighting.glsl"
+uniform int biome_category;
 
 uniform sampler2D lightmap;
 uniform sampler2D texture;
@@ -12,13 +12,16 @@ varying float isEmissiveBlock;
 varying vec3 viewNormal;   
 varying vec3 viewPosVar;
 
+#include "/lib/nether_sky.glsl"
+#include "/lib/nether_lighting.glsl"
+
 #define RIM_COLOR vec3(0.780, 0.337, 0.039)
 #define RIM_POWER 2.0
 #define RIM_STRENGTH 1.0
 
-#define BLOCKLIGHT_RADIUS 1.5
+#define BLOCKLIGHT_RADIUS 2.0
 #define TORCH_WARM_TINT vec3(1.40, 1.05, 0.50)
-#define TORCH_WARM_STRENGTH 0.45   
+#define TORCH_WARM_STRENGTH 0.35   
 #define TORCH_SPREAD_CURVE 0.8
 #define EMISSIVE_GLOW_BOOST 1.6
 
@@ -43,8 +46,9 @@ void main() {
 	float torchStrength = pow(lmcoord.x, TORCH_SPREAD_CURVE);
 	color.rgb = mix(color.rgb, color.rgb * TORCH_WARM_TINT, torchStrength * TORCH_WARM_STRENGTH);
 
-	color.rgb = applyNetherAmbientFill(color.rgb); 
-	vec3 V = normalize(-viewPosVar);   
+	color.rgb = applyNetherAmbientFill(color.rgb, getNetherAmbientFillColor(biome_category));
+
+	vec3 V = normalize(-viewPosVar);
 	float rim = rimFactor(normalize(viewNormal), V, torchStrength);
 	color.rgb += RIM_COLOR * rim * RIM_STRENGTH;
 
