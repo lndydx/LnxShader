@@ -27,8 +27,8 @@ varying vec2 texcoord;
 varying float eyeInWater;
 
 #define TARGET_LUMA 0.12
-#define EXPOSURE_MIN 0.9
-#define EXPOSURE_MAX 1.3
+#define EXPOSURE_MIN 0.6
+#define EXPOSURE_MAX 1.0
 #define EXPOSURE_ADAPT_RATE 1.0
 #define NIGHT_TARGET_LUMA_MULT   0.9
 #define NIGHT_EXPOSURE_MIN_MULT  0.7
@@ -36,9 +36,9 @@ varying float eyeInWater;
 #define EXPOSURE_ENCODE_MIN (EXPOSURE_MIN * NIGHT_EXPOSURE_MIN_MULT)
 #define EXPOSURE_ENCODE_MAX EXPOSURE_MAX
 
-#define BLOOM_THRESHOLD 0.75
+#define BLOOM_THRESHOLD 0.70
 #define BLOOM_KNEE 0.35
-#define BLOOM_INTENSITY 0.8
+#define BLOOM_INTENSITY 1.0
 #define BLOOM_CORE_BOOST 1.2
 #define BLOOM_RADIUS_PX 0.4
 #define BLOOM_RADIUS_PX_WIDE 1.2
@@ -51,7 +51,7 @@ varying float eyeInWater;
 #define NIGHT_HEIGHT_THRESHOLD -0.30
 
 #define AO_RADIUS 0.2
-#define AO_STRENGTH 0.6
+#define AO_STRENGTH 0.50
 #define AO_SAMPLES 5
 #define AO_BIAS 0.03
 
@@ -62,6 +62,7 @@ varying float eyeInWater;
 #include "/lib/composite_common.glsl"
 #include "/lib/composite_post.glsl"
 #include "/lib/nether_sky.glsl" 
+#include "/lib/nether_fog.glsl" 
 
 // SSAO
 float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
@@ -90,13 +91,7 @@ float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
     return 1.0 - clamp(occlusion * AO_STRENGTH, 0.0, 1.0);
 }
 
-vec3 applyNetherFog(vec3 col, float linDepth, bool isSky) {
-    if (isSky) return col;
-    float realDistance = linDepth * far;
-    float fogFactor = 1.0 - exp(-max(realDistance - NETHER_FOG_BEGIN, 0.0) * NETHER_FOG_DENSITY);
-    fogFactor = clamp(fogFactor, 0.0, NETHER_FOG_MAX);
-    return mix(col, fogColor, fogFactor);
-}
+
 
 vec3 applyLavaVision(vec3 sceneColor, float linDepth) {
     float dist = linDepth * far;
@@ -148,7 +143,14 @@ void main() {
             col *= ao;
         }
 
-        col = applyNetherFog(col, linDepth, isSky);
+        vec3 biomeColor = getNetherBiomeColor(biome_category);
+        float biomeLuma = getLuma(biomeColor);
+        vec3 moodColor = mix(biomeColor, vec3(biomeLuma) * vec3(0.80, 0.88, 1.05), 0.55);
+        moodColor *= 0.30;
+
+        vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
+        col = applyNetherVolumetricFog(col, cameraPosition, worldPos, isSky, moodColor);
+
         vec3 sunDir = getSunDirWorld();
         vec3 rayDir = getWorldRayDir(texcoord);
         vec3 netherAtmo = renderNetherAtmosphere(rayDir, frameTimeCounter, biome_category);
@@ -161,7 +163,9 @@ void main() {
     float exposure = computeExposure(sunDir);
     col *= exposure;
 
-    col = applyColorGrade(col, sunDir);
+    float netherLuma = getLuma(col);
+    col = mix(vec3(netherLuma), col, 1.15);  
+    col = applyContrast(col, CONTRAST);
     col = acesTonemap(col);
     col = applySharpen(col, texcoord);
     col = clamp(col, 0.0, 1.0);

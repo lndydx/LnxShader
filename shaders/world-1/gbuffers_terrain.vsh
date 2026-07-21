@@ -12,6 +12,8 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying float isEmissiveBlock;
+varying vec3 viewNormal;   
+varying vec3 viewPosVar;   
 
 #define WAVE_LEAVES_ID   10010
 #define WAVE_GRASS_ID    10011
@@ -107,5 +109,7 @@ void main() {
     }
 
     vec4 viewPos = gl_ModelViewMatrix * position;
+    viewNormal  = normalize(gl_NormalMatrix * gl_Normal);   
+    viewPosVar  = viewPos.xyz;                                
     gl_Position = gl_ProjectionMatrix * viewPos;
 }

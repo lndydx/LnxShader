@@ -25,6 +25,10 @@ varying vec2 waterWorldXZ;
 const bool shadowtex1Nearest = true;
 
 #include "/distort.glsl"
+#include "/lib/ggx.glsl"
+
+#define WATER_SPECULAR_ROUGHNESS 0.20
+#define WATER_SPECULAR_INTENSITY 8.0
 
 #define STORM_WATER_COLOR vec3(0.34, 0.38, 0.4)
 #define DAY_HEIGHT_THRESHOLD 0.5
@@ -33,6 +37,17 @@ const bool shadowtex1Nearest = true;
 float waveHeight(vec2 pos, float t) {
     return sin(pos.x * 0.8 + pos.y * 0.5 + t * 1.2) * 0.09
          + sin(pos.x * 1.3 - pos.y * 1.1 + t * 0.9) * 0.05;
+}
+
+vec2 microRippleOffset(vec2 pos, float t) {
+    vec2 offset = vec2(0.0);
+
+    offset += vec2( 0.83,  0.55) * sin(dot(pos, vec2( 0.83,  0.55)) * 4.7 + t * 2.3);
+    offset += vec2(-0.42,  0.91) * sin(dot(pos, vec2(-0.42,  0.91)) * 7.1 - t * 1.7 + 1.3);
+    offset += vec2( 0.65, -0.76) * sin(dot(pos, vec2( 0.65, -0.76)) * 5.9 + t * 3.1 + 4.2);
+    offset += vec2(-0.95, -0.31) * sin(dot(pos, vec2(-0.95, -0.31)) * 9.3 - t * 2.6 + 2.1);
+
+    return offset * 0.25;
 }
 
 vec3 skyColorByWorldTime(int wt, float sunHeight, float rain) {
@@ -122,6 +137,8 @@ void main() {
         float hU = waveHeight(wavePos + vec2(0.0, eps), t);
         vec3 waveNormalWorld = normalize(vec3((hL - hR) / (2.0 * eps), 1.0, (hD - hU) / (2.0 * eps)));
         N = normalize(mat3(gbufferModelView) * waveNormalWorld);
+        vec2 ripple = microRippleOffset(waterWorldXZ, t);
+        N = normalize(N + vec3(ripple.x, 0.0, ripple.y) * 0.14);
     }
 
     vec3 skyCol = skyColorByWorldTime(worldTime, sunHeight, rainStrength);
@@ -139,7 +156,7 @@ void main() {
 
     float cosView = clamp(dot(-viewDir, N), 0.0, 1.0);
     float F0 = 0.02;
-    float fresnel = F0 + (1.0 - F0) * pow(1.0 - cosView, 5.0);
+    float fresnel = fresnelSchlick(cosView, vec3(F0)).r;
 
     float lmLuma = dot(lm, vec3(0.299, 0.587, 0.114));
     float lmNightFactor = smoothstep(0.0, NIGHT_HEIGHT_THRESHOLD, sunHeight);
@@ -156,6 +173,9 @@ void main() {
     reflectWeight = max(reflectWeight, mix(0.0, 0.15, verticalness) * float(isEyeInWater == 0));
 
     vec3 finalColor = mix(baseColor.rgb * lmNeutral, ambientReflection, reflectWeight);
+    vec3 sunSpecular = ggxSpecular(N, -viewDir, sunDirView, WATER_SPECULAR_ROUGHNESS, vec3(F0));
+    float sunVisible = smoothstep(-0.05, 0.05, sunDirWorld.y) * skyVisibility * float(isEyeInWater == 0);
+    finalColor += sunSpecular * WATER_SPECULAR_INTENSITY * sunVisible;
 
     #ifdef SHADOWS
     float shadow = 1.0;
