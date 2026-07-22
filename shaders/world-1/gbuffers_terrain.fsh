@@ -1,6 +1,6 @@
 #version 120
 
-uniform int biome_category;
+uniform float netherBiomeId;
 
 uniform sampler2D lightmap;
 uniform sampler2D texture;
@@ -46,7 +46,7 @@ void main() {
 	float torchStrength = pow(lmcoord.x, TORCH_SPREAD_CURVE);
 	color.rgb = mix(color.rgb, color.rgb * TORCH_WARM_TINT, torchStrength * TORCH_WARM_STRENGTH);
 
-	color.rgb = applyNetherAmbientFill(color.rgb, getNetherAmbientFillColor(biome_category));
+	color.rgb = applyNetherAmbientFill(color.rgb, getNetherAmbientFillColor(netherBiomeId));
 
 	vec3 V = normalize(-viewPosVar);
 	float rim = rimFactor(normalize(viewNormal), V, torchStrength);

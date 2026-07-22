@@ -4,6 +4,12 @@
 float hash1N(float n) { return fract(sin(n) * 83729.29412221); }
 float hash3N(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.3))) * 37913.80952); }
 
+#define BIOME_NETHER_WASTES 0
+#define BIOME_SOUL_SAND_VALLEY 1
+#define BIOME_CRIMSON_FOREST 2
+#define BIOME_WARPED_FOREST 3
+#define BIOME_BASALT_DELTAS 4
+
 float noise3N(vec3 p) {
     vec3 i = floor(p);
     vec3 f = fract(p);
@@ -42,12 +48,6 @@ float fbm3dN(vec3 p) {
     return v / sum;
 }
 
-#define BIOME_NETHER_WASTES 100
-#define BIOME_SOUL_SAND_VALLEY 101
-#define BIOME_CRIMSON_FOREST 102
-#define BIOME_WARPED_FOREST 103
-#define BIOME_BASALT_DELTAS 104
-
 #define COL_NETHER_WASTES vec3(0.38, 0.08, 0.06)
 #define COL_SOUL_SAND_VALLEY vec3(0.12, 0.38, 0.35)
 #define COL_CRIMSON_FOREST vec3(0.50, 0.08, 0.10)
@@ -55,7 +55,7 @@ float fbm3dN(vec3 p) {
 #define COL_BASALT_DELTAS vec3(0.18, 0.17, 0.18)
 #define COL_NETHER_DEFAULT vec3(0.35, 0.12, 0.08)
 
-vec3 getNetherBiomeColor(int biomeId) {
+vec3 getNetherBiomeColorExact(int biomeId) {
     if (biomeId == BIOME_NETHER_WASTES)    return COL_NETHER_WASTES;
     if (biomeId == BIOME_SOUL_SAND_VALLEY) return COL_SOUL_SAND_VALLEY;
     if (biomeId == BIOME_CRIMSON_FOREST)   return COL_CRIMSON_FOREST;
@@ -64,14 +64,14 @@ vec3 getNetherBiomeColor(int biomeId) {
     return COL_NETHER_DEFAULT;
 }
 
-const vec3 FILL_NETHER_WASTES    = vec3(0.100, 0.040, 0.030);
+const vec3 FILL_NETHER_WASTES = vec3(0.100, 0.040, 0.030);
 const vec3 FILL_SOUL_SAND_VALLEY = vec3(0.030, 0.090, 0.110);
-const vec3 FILL_CRIMSON_FOREST   = vec3(0.110, 0.035, 0.045);
-const vec3 FILL_WARPED_FOREST    = vec3(0.040, 0.070, 0.100);
-const vec3 FILL_BASALT_DELTAS    = vec3(0.060, 0.058, 0.065);
-const vec3 FILL_NETHER_DEFAULT   = vec3(0.080, 0.040, 0.035);
+const vec3 FILL_CRIMSON_FOREST = vec3(0.110, 0.035, 0.045);
+const vec3 FILL_WARPED_FOREST = vec3(0.040, 0.070, 0.100);
+const vec3 FILL_BASALT_DELTAS = vec3(0.060, 0.058, 0.065);
+const vec3 FILL_NETHER_DEFAULT = vec3(0.080, 0.040, 0.035);
 
-vec3 getNetherAmbientFillColor(int biomeId) {
+vec3 getNetherAmbientFillColorExact(int biomeId) {
     if (biomeId == BIOME_NETHER_WASTES)    return FILL_NETHER_WASTES;
     if (biomeId == BIOME_SOUL_SAND_VALLEY) return FILL_SOUL_SAND_VALLEY;
     if (biomeId == BIOME_CRIMSON_FOREST)   return FILL_CRIMSON_FOREST;
@@ -80,20 +80,38 @@ vec3 getNetherAmbientFillColor(int biomeId) {
     return FILL_NETHER_DEFAULT;
 }
 
-const vec3 FOG_NETHER_WASTES    = vec3(0.55, 0.35, 0.28);
-const vec3 FOG_SOUL_SAND_VALLEY = vec3(0.38, 0.56, 0.54);
-const vec3 FOG_CRIMSON_FOREST   = vec3(0.58, 0.28, 0.30);
-const vec3 FOG_WARPED_FOREST    = vec3(0.38, 0.42, 0.58);
-const vec3 FOG_BASALT_DELTAS    = vec3(0.44, 0.42, 0.42);
-const vec3 FOG_NETHER_DEFAULT   = vec3(0.48, 0.40, 0.36);
+const vec3 FOG_NETHER_WASTES = vec3(0.529, 0.212, 0.212);
+const vec3 FOG_SOUL_SAND_VALLEY = vec3(0.122, 0.200, 0.216);
+const vec3 FOG_CRIMSON_FOREST = vec3(0.133, 0.047, 0.051);
+const vec3 FOG_WARPED_FOREST = vec3(0.090, 0.114, 0.208);
+const vec3 FOG_BASALT_DELTAS = vec3(0.188, 0.173, 0.173);
+const vec3 FOG_NETHER_DEFAULT = vec3(0.412, 0.169, 0.149);
 
-vec3 getNetherFogColor(int biomeId) {
+vec3 getNetherFogColorExact(int biomeId) {
     if (biomeId == BIOME_NETHER_WASTES)    return FOG_NETHER_WASTES;
     if (biomeId == BIOME_SOUL_SAND_VALLEY) return FOG_SOUL_SAND_VALLEY;
     if (biomeId == BIOME_CRIMSON_FOREST)   return FOG_CRIMSON_FOREST;
     if (biomeId == BIOME_WARPED_FOREST)    return FOG_WARPED_FOREST;
     if (biomeId == BIOME_BASALT_DELTAS)    return FOG_BASALT_DELTAS;
     return FOG_NETHER_DEFAULT;
+}
+
+vec3 getNetherBiomeColor(float biomeId) {
+    int idLow = int(floor(biomeId));
+    float t = fract(biomeId);
+    return mix(getNetherBiomeColorExact(idLow), getNetherBiomeColorExact(idLow + 1), t);
+}
+
+vec3 getNetherAmbientFillColor(float biomeId) {
+    int idLow = int(floor(biomeId));
+    float t = fract(biomeId);
+    return mix(getNetherAmbientFillColorExact(idLow), getNetherAmbientFillColorExact(idLow + 1), t);
+}
+
+vec3 getNetherFogColor(float biomeId) {
+    int idLow = int(floor(biomeId));
+    float t = fract(biomeId);
+    return mix(getNetherFogColorExact(idLow), getNetherFogColorExact(idLow + 1), t);
 }
 
 #define NETHER_AMBIENT_STRENGTH 0.03
@@ -103,13 +121,13 @@ vec3 renderNetherAmbientGlow(vec3 biomeColor) {
     return darkAmbient * NETHER_AMBIENT_STRENGTH;
 }
 
-#define SMOKE_DUST_WARP_SCALE   2.5
-#define SMOKE_DUST_WARP_AMOUNT  0.04
-#define SMOKE_DUST_NOISE_SCALE  1.4
+#define SMOKE_DUST_WARP_SCALE 2.5
+#define SMOKE_DUST_WARP_AMOUNT 0.04
+#define SMOKE_DUST_NOISE_SCALE 1.4
 #define SMOKE_DUST_DETAIL_SCALE 3.0
-#define SMOKE_DUST_THRESH_LOW   0.40
-#define SMOKE_DUST_THRESH_HIGH  0.80
-#define SMOKE_DUST_STRENGTH     0.40
+#define SMOKE_DUST_THRESH_LOW 0.40
+#define SMOKE_DUST_THRESH_HIGH 0.80
+#define SMOKE_DUST_STRENGTH 0.40
 
 float smokeDustNoise(vec3 local, float bandFalloff) {
     vec3 warp = vec3(fbm3dN(local * SMOKE_DUST_WARP_SCALE + vec3(400.0, 100.0, 250.0)),
@@ -127,14 +145,14 @@ float smokeDustNoise(vec3 local, float bandFalloff) {
     return patch;
 }
 
-#define SMOKE_ANGLE_SCALE      1.8
-#define SMOKE_HEIGHT_SCALE     1.2
-#define SMOKE_MORPH_SPEED      0.04
-#define SMOKE_CENTER_HEIGHT    0.35
-#define SMOKE_VERTICAL_SPREAD  0.55
-#define SMOKE_FADE_SOFTNESS    0.60
-#define SMOKE_STRETCH_POWER    0.6
-#define SMOKE_INTENSITY        0.45
+#define SMOKE_ANGLE_SCALE 1.8
+#define SMOKE_HEIGHT_SCALE 1.2
+#define SMOKE_MORPH_SPEED 0.04
+#define SMOKE_CENTER_HEIGHT 0.35
+#define SMOKE_VERTICAL_SPREAD 0.55
+#define SMOKE_FADE_SOFTNESS 0.60
+#define SMOKE_STRETCH_POWER 0.6
+#define SMOKE_INTENSITY 0.65
 
 vec3 renderNetherSmoke(vec3 worldDir, float time, vec3 biomeColor) {
     float h = worldDir.y;
@@ -182,12 +200,12 @@ vec3 renderNetherSmoke(vec3 worldDir, float time, vec3 biomeColor) {
     vec3 smokeLight = vec3(0.28, 0.26, 0.25);
     vec3 col = mix(smokeDark, smokeLight, struc);
 
-    col = mix(col, biomeColor * 0.6, 0.10 + detail * 0.08);
+    col = mix(col, biomeColor, 0.55 + detail * 0.20);
 
     return col * brightness;
 }
 
-vec3 renderNetherAtmosphere(vec3 worldDir, float time, int biomeId) {
+vec3 renderNetherAtmosphere(vec3 worldDir, float time, float biomeId) {
     vec3 biomeColor = getNetherBiomeColor(biomeId);
     vec3 col = vec3(0.0);
 

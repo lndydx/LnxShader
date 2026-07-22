@@ -22,15 +22,15 @@ uniform float fogEnd;
 uniform float rainStrength;
 uniform mat4 gbufferProjectionInverse;
 uniform mat4 gbufferModelViewInverse;
-uniform int biome_category;
+uniform float netherBiomeId;
 
 varying vec2 texcoord;
 varying float eyeInWater;
 
-#define EYE_ADJUST_NETHER_DARK      2.2
-#define EYE_ADJUST_NETHER_LIGHT     1.6
-#define NETHER_TARGET_LUMA          0.12
-#define NETHER_EXPOSURE_ADAPT_RATE  0.8
+#define EYE_ADJUST_NETHER_DARK 2.2
+#define EYE_ADJUST_NETHER_LIGHT 1.6
+#define NETHER_TARGET_LUMA 0.12
+#define NETHER_EXPOSURE_ADAPT_RATE 0.8
 #define EXPOSURE_ENCODE_MIN (EYE_ADJUST_NETHER_LIGHT * 0.4)
 #define EXPOSURE_ENCODE_MAX EYE_ADJUST_NETHER_DARK
 
@@ -71,6 +71,7 @@ float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
         float screenRadius = AO_RADIUS * (1.0 / max(-viewPos.z, 1.0)) * 0.05;
         vec2 sampleUV = uv + dir * screenRadius;
         float sampleDepthRaw = texture2D(depthtex0, sampleUV).r;
+        
         if (sampleDepthRaw >= 0.9999) continue;
         vec3 sampleViewPos = getViewPos(sampleUV, sampleDepthRaw);
         vec3 diff = sampleViewPos - viewPos;
@@ -116,6 +117,12 @@ float computeNetherExposure() {
 /* DRAWBUFFERS:02 */
 
 void main() {
+    #if DEBUG_BIOME_CATEGORY
+    gl_FragData[0] = vec4(debugBiomeCategoryColor(netherBiomeId), 1.0);
+    gl_FragData[1] = vec4(0.0, 0.0, 0.0, 1.0);
+    return;
+#endif
+
     vec3 col       = texture2D(colortex0, texcoord).rgb;
     float rawDepth = texture2D(depthtex0, texcoord).r;
     float linDepth = linearizeDepth(rawDepth);
@@ -146,13 +153,13 @@ void main() {
             col *= ao;
         }
 
-        vec3 moodColor = getNetherFogColor(biome_category);
+        vec3 moodColor = getNetherFogColor(netherBiomeId);
 
         vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
         col = applyNetherVolumetricFog(col, cameraPosition, worldPos, isSky, moodColor);
 
         vec3 rayDir = getWorldRayDir(texcoord);
-        vec3 netherAtmo = renderNetherAtmosphere(rayDir, frameTimeCounter, biome_category);
+        vec3 netherAtmo = renderNetherAtmosphere(rayDir, frameTimeCounter, netherBiomeId);
         col += netherAtmo * (isSky ? 1.0 : 0.08);
     }
 

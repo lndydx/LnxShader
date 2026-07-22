@@ -1,6 +1,6 @@
 #version 120
 
-uniform int biome_category;
+uniform float netherBiomeId;
 
 #include "/lib/nether_sky.glsl"
 #include "/lib/nether_lighting.glsl"
@@ -19,8 +19,8 @@ void main() {
 	color *= texture2D(lightmap, lmcoord);
 
 	color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
-	color.rgb = applyNetherAmbientFill(color.rgb, getNetherAmbientFillColor(biome_category));
+	color.rgb = applyNetherAmbientFill(color.rgb, getNetherAmbientFillColor(netherBiomeId));
 
 /* DRAWBUFFERS:0 */
-	gl_FragData[0] = color; //gcolor
+	gl_FragData[0] = color; 
 }

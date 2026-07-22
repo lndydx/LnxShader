@@ -1,6 +1,6 @@
 #version 120
 
-uniform int biome_category;
+uniform float netherBiomeId;
 
 uniform sampler2D texture;
 uniform sampler2D lightmap;
@@ -55,5 +55,5 @@ void main() {
         return;
     }
 
-    gl_FragData[0] = vec4(applyNetherAmbientFill(baseColor.rgb * lm, getNetherAmbientFillColor(biome_category)), baseColor.a); 
-}
+    gl_FragData[0] = vec4(applyNetherAmbientFill(baseColor.rgb * lm, getNetherAmbientFillColor(netherBiomeId)), baseColor.a); 
+}   
