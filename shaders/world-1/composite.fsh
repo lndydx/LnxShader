@@ -27,31 +27,31 @@ uniform int biome_category;
 varying vec2 texcoord;
 varying float eyeInWater;
 
-#define EYE_ADJUST_NETHER_DARK      2.5
-#define EYE_ADJUST_NETHER_LIGHT     1.5
-#define NETHER_TARGET_LUMA          0.10
-#define NETHER_EXPOSURE_ADAPT_RATE  1.0
+#define EYE_ADJUST_NETHER_DARK      2.2
+#define EYE_ADJUST_NETHER_LIGHT     1.6
+#define NETHER_TARGET_LUMA          0.12
+#define NETHER_EXPOSURE_ADAPT_RATE  0.8
 #define EXPOSURE_ENCODE_MIN (EYE_ADJUST_NETHER_LIGHT * 0.4)
 #define EXPOSURE_ENCODE_MAX EYE_ADJUST_NETHER_DARK
 
-#define BLOOM_THRESHOLD 0.72
-#define BLOOM_KNEE 0.35
-#define BLOOM_INTENSITY 0.6
-#define BLOOM_CORE_BOOST 1.2
-#define BLOOM_RADIUS_PX 0.4
-#define BLOOM_RADIUS_PX_WIDE 1.0
+#define BLOOM_THRESHOLD 0.65
+#define BLOOM_KNEE 0.30
+#define BLOOM_INTENSITY 0.45
+#define BLOOM_CORE_BOOST 1.0
+#define BLOOM_RADIUS_PX 0.3
+#define BLOOM_RADIUS_PX_WIDE 0.8
 
-#define SATURATION 1.4
-#define VIBRANCE 0.35
-#define CONTRAST 0.3
-#define SHARPEN_STRENGTH 0.1
+#define SATURATION 1.15
+#define VIBRANCE 0.20
+#define CONTRAST 0.15
+#define SHARPEN_STRENGTH 0.05
 
 #define NIGHT_HEIGHT_THRESHOLD -0.30
 
-#define AO_RADIUS 0.2
-#define AO_STRENGTH 0.55
-#define AO_SAMPLES 5
-#define AO_BIAS 0.03
+#define AO_RADIUS 0.15
+#define AO_STRENGTH 0.40
+#define AO_SAMPLES 4
+#define AO_BIAS 0.04
 
 #include "/lib/composite_common.glsl"
 #include "/lib/composite_post.glsl"
@@ -86,8 +86,8 @@ float getSSAO(vec2 uv, vec3 viewPos, vec3 normal) {
 
 vec3 applyLavaVision(vec3 sceneColor, float linDepth) {
     float dist = linDepth * far;
-    float sceneVisibility = (1.0 - smoothstep(0.0, 3.0, dist)) * 0.4; 
-    vec3 lavaColor = vec3(0.85, 0.32, 0.05) + 0.04 * sin(frameTimeCounter * 2.0);
+    float sceneVisibility = (1.0 - smoothstep(0.0, 4.0, dist)) * 0.35;
+    vec3 lavaColor = vec3(0.75, 0.28, 0.06) + 0.03 * sin(frameTimeCounter * 1.5);
     return mix(lavaColor, sceneColor, sceneVisibility);
 }
 
@@ -102,7 +102,7 @@ vec3 getWorldRayDir(vec2 uv) {
 float computeNetherExposure() {
     float avgLuma = max(sampleAverageLuminance(), 0.0001);
 
-    float eyeCeiling = mix(EYE_ADJUST_NETHER_DARK, EYE_ADJUST_NETHER_LIGHT, smoothstep(0.02, 0.20, avgLuma));
+    float eyeCeiling = mix(EYE_ADJUST_NETHER_DARK, EYE_ADJUST_NETHER_LIGHT, smoothstep(0.02, 0.25, avgLuma));
     float targetExposure = clamp(NETHER_TARGET_LUMA / avgLuma, EYE_ADJUST_NETHER_LIGHT * 0.4, eyeCeiling);
 
     vec2 historyTexel = vec2(0.5 / viewWidth, 0.5 / viewHeight);
@@ -146,17 +146,14 @@ void main() {
             col *= ao;
         }
 
-        vec3 biomeColor = getNetherBiomeColor(biome_category);
-        float biomeLuma = getLuma(biomeColor);
-        vec3 moodColor = mix(biomeColor, vec3(biomeLuma) * vec3(0.80, 0.88, 1.05), 0.55);
-        moodColor *= 0.30;
+        vec3 moodColor = getNetherFogColor(biome_category);
 
         vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
         col = applyNetherVolumetricFog(col, cameraPosition, worldPos, isSky, moodColor);
 
         vec3 rayDir = getWorldRayDir(texcoord);
         vec3 netherAtmo = renderNetherAtmosphere(rayDir, frameTimeCounter, biome_category);
-        col += netherAtmo * (isSky ? 1.0 : 0.15);
+        col += netherAtmo * (isSky ? 1.0 : 0.08);
     }
 
     vec3 bloomContribution = isSky ? vec3(0.0) : getBloomContribution(col, texcoord);
@@ -166,7 +163,7 @@ void main() {
     col *= exposure;
 
     float netherLuma = getLuma(col);
-    col = mix(vec3(netherLuma), col, 1.15);  
+    col = mix(vec3(netherLuma), col, 1.08);
     col = applyContrast(col, CONTRAST);
     col = acesTonemap(col);
     col = applySharpen(col, texcoord);

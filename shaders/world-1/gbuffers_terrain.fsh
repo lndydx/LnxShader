@@ -15,15 +15,15 @@ varying vec3 viewPosVar;
 #include "/lib/nether_sky.glsl"
 #include "/lib/nether_lighting.glsl"
 
-#define RIM_COLOR vec3(0.780, 0.337, 0.039)
-#define RIM_POWER 2.0
-#define RIM_STRENGTH 1.0
+#define RIM_COLOR vec3(0.65, 0.30, 0.12)
+#define RIM_POWER 3.5
+#define RIM_STRENGTH 1.5
 
 #define BLOCKLIGHT_RADIUS 2.0
-#define TORCH_WARM_TINT vec3(1.40, 1.05, 0.50)
-#define TORCH_WARM_STRENGTH 0.35   
+#define TORCH_WARM_TINT vec3(1.000, 0.686, 0.141)
+#define TORCH_WARM_STRENGTH 0.75
 #define TORCH_SPREAD_CURVE 0.8
-#define EMISSIVE_GLOW_BOOST 1.6
+#define EMISSIVE_GLOW_BOOST 1.8
 
 float rimFactor(vec3 N, vec3 V, float lightAmount) {
     float facing = 1.0 - max(dot(N, V), 0.0);
