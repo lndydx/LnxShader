@@ -20,12 +20,12 @@ Built on top of [null511](https://github.com/null511)'s shader template.
 
 - Shadows with distortion, colored shadows (stained glass), and dynamic bias
 - Screen-space reflections (SSR) on water, with denoise blur pass
-- Rain wetness system — surface darkening + ripple puddles on flat/upward-facing blocks
+- Rain wetness system, surface darkening + ripple puddles on flat/upward-facing blocks
 - Procedural night sky: hand-placed constellations, galaxy band, twinkling stars
 - Volumetric-style god rays (shadow-map raymarch) + anamorphic lens flare
 - Wind-animated foliage (leaves, grass, vines, crops, dripleaf, litter)
 - SSAO, bloom, auto exposure, ACES tonemap, color grading
-- Nether & End dimension support *(work in progress — visuals still being tuned)*
+- Nether & End dimension support *(work in progress, visuals still being tuned)*
 
 ## Requirements
 
