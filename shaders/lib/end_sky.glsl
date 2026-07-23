@@ -1,6 +1,9 @@
 #ifndef END_SKY_GLSL
 #define END_SKY_GLSL
 
+#include "/lib/end_palette.glsl"
+#include "/lib/end_stars.glsl"
+
 float hash1(float n) { return fract(sin(n) * 83729.29412221); }
 float hash3(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.3))) * 37913.80952); }
 
@@ -66,22 +69,47 @@ float fbm3d(vec3 p) {
     return v / sum;
 }
 
-#define AMBIENT_SKY_COLOR vec3(0.008, 0.003, 0.012)
-#define AMBIENT_SKY_STRENGTH 0.005
+#define NEBULA_WARP_SCALE 0.60   //[tuning] makin kecil = pattern makin besar/melebar
+#define NEBULA_WARP_STRENGTH1 1.4 //[tuning] intensitas distorsi warp tahap 1
+#define NEBULA_WARP_STRENGTH2 0.6 //[tuning] intensitas distorsi warp tahap 2
+#define NEBULA_DENSITY_LOW 0.30  //[tuning] threshold bawah smoothstep density
+#define NEBULA_DENSITY_HIGH 0.75 //[tuning] threshold atas smoothstep density
+#define NEBULA_VERTICAL_FADE_START -0.2 //[tuning] mulai fade dari horizon
+#define NEBULA_VERTICAL_FADE_END 0.9    //[tuning] fade habis menuju zenith
 
-vec3 renderEndAmbientGlow(vec3 worldDir) {
-    float h = clamp(worldDir.y, -1.0, 1.0);
-    float horizonGlow = 1.0 - smoothstep(-0.1, 0.9, abs(h));
-    return AMBIENT_SKY_COLOR * (0.4 + horizonGlow) * AMBIENT_SKY_STRENGTH;
+vec2 warpNebula(vec2 p) {
+    vec2 w1 = vec2(fbm3(p * 0.8 + 17.0), fbm3(p * 0.8 - 9.0));
+    p += (w1 - 0.5) * NEBULA_WARP_STRENGTH1;
+    vec2 w2 = vec2(fbm3(p * 1.6 + 44.0), fbm3(p * 1.6 - 21.0));
+    p += (w2 - 0.5) * NEBULA_WARP_STRENGTH2;
+    return p;
 }
 
-#define SPARKLE_SCALE 80.0
-#define SPARKLE_SCALE_2 120.0
-#define SPARKLE_DENSITY 0.08
-#define SPARKLE_DENSITY_2 0.07
-#define SPARKLE_SIZE 0.34
-#define SPARKLE_SIZE_2 0.40
-#define SPARKLE_TWINKLE_SPEED 1.6
+vec3 renderNebula(vec3 worldDir) {
+    vec2 p = worldDir.xz / (abs(worldDir.y) + 0.35);
+
+    vec2 warped = warpNebula(p * NEBULA_WARP_SCALE);
+    float structureA = fbm3(warped * 1.1);
+    float structureB = fbm3(warped * 3.2 + 88.0);
+
+    float density = mix(structureA, structureB, 0.35);
+    density = smoothstep(NEBULA_DENSITY_LOW, NEBULA_DENSITY_HIGH, density);
+
+    float colorMix = fbm3(warped * 0.6 + 5.0);
+    vec3 core = mix(NEBULA_CORE_BLUE, NEBULA_CORE_MAGENTA, colorMix);
+    vec3 col  = mix(NEBULA_EDGE, core, density);
+
+    float verticalFade = 1.0 - smoothstep(NEBULA_VERTICAL_FADE_START, NEBULA_VERTICAL_FADE_END, abs(worldDir.y));
+    return col * density * verticalFade;
+}
+
+#define SPARKLE_SCALE 80.0     //[tuning] kerapatan grid bintang kecil
+#define SPARKLE_SCALE_2 120.0  //[tuning] kerapatan grid bintang kecil lapis 2
+#define SPARKLE_DENSITY 0.08   //[tuning] peluang tiap sel jadi bintang
+#define SPARKLE_DENSITY_2 0.07 //[tuning] peluang lapis 2
+#define SPARKLE_SIZE 0.34      //[tuning] ukuran titik bintang
+#define SPARKLE_SIZE_2 0.40    //[tuning] ukuran titik bintang lapis 2
+#define SPARKLE_TWINKLE_SPEED 1.6 //[tuning] kecepatan kedip
 
 float starField(vec3 dir, float cellScale, float density, float pointSize, float time) {
     vec3 p = dir * cellScale;
@@ -109,20 +137,24 @@ vec3 renderEndSparkleStars(vec3 dir, float time) {
     float sparkle = clamp(s1 + s2 * 0.8, 0.0, 1.0);
     if (sparkle <= 0.0) return vec3(0.0);
 
-    vec3 white       = vec3(1.0, 1.0, 1.0);
-    vec3 magentaPink = vec3(1.0, 0.75, 0.95);
-    vec3 sparkleCol = mix(white, magentaPink, hash3(floor(dir * SPARKLE_SCALE) + 3.3));
+    vec3 white  = vec3(1.0, 1.0, 1.0);
+    vec3 violet = vec3(0.85, 0.75, 1.0);
+    vec3 cyan   = vec3(0.70, 0.90, 1.0);
+
+    float colorPick = hash3(floor(dir * SPARKLE_SCALE) + 3.3);
+    vec3 sparkleCol = colorPick < 0.5 ? mix(white, violet, colorPick * 2.0)
+                                       : mix(violet, cyan, (colorPick - 0.5) * 2.0);
 
     return sparkleCol * sparkle;
 }
 
-#define AURORA_DUST_WARP_SCALE 3.0
-#define AURORA_DUST_WARP_AMOUNT 0.05
-#define AURORA_DUST_NOISE_SCALE 1.6
-#define AURORA_DUST_DETAIL_SCALE 3.4
-#define AURORA_DUST_THRESH_LOW 0.35
-#define AURORA_DUST_THRESH_HIGH 0.75
-#define AURORA_DUST_STRENGTH 0.55
+#define AURORA_DUST_WARP_SCALE 3.0    //[tuning]
+#define AURORA_DUST_WARP_AMOUNT 0.05  //[tuning]
+#define AURORA_DUST_NOISE_SCALE 1.6   //[tuning]
+#define AURORA_DUST_DETAIL_SCALE 3.4  //[tuning]
+#define AURORA_DUST_THRESH_LOW 0.35   //[tuning]
+#define AURORA_DUST_THRESH_HIGH 0.75  //[tuning]
+#define AURORA_DUST_STRENGTH 0.55     //[tuning]
 
 float auroraDustNoise(vec3 local, float bandFalloff) {
     vec3 warp = vec3(fbm3d(local * AURORA_DUST_WARP_SCALE + vec3(400.0, 100.0, 250.0)),
@@ -140,14 +172,14 @@ float auroraDustNoise(vec3 local, float bandFalloff) {
     return patch;
 }
 
-#define AURORA_ANGLE_SCALE 2.0
-#define AURORA_HEIGHT_SCALE 1.5
-#define AURORA_MORPH_SPEED 0.05
-#define AURORA_CENTER_HEIGHT 0.30
-#define AURORA_VERTICAL_SPREAD 0.65
-#define AURORA_FADE_SOFTNESS 0.50
-#define AURORA_STRETCH_POWER 0.5
-#define AURORA_INTENSITY 0.50
+#define AURORA_ANGLE_SCALE 2.0     //[tuning]
+#define AURORA_HEIGHT_SCALE 1.5    //[tuning]
+#define AURORA_MORPH_SPEED 0.05    //[tuning] kecepatan aurora "bernapas"
+#define AURORA_CENTER_HEIGHT 0.30  //[tuning] posisi vertikal pita aurora
+#define AURORA_VERTICAL_SPREAD 0.65 //[tuning]
+#define AURORA_FADE_SOFTNESS 0.50   //[tuning]
+#define AURORA_STRETCH_POWER 0.5    //[tuning]
+#define AURORA_INTENSITY 0.40       //[tuning] kecerahan aurora keseluruhan
 
 vec3 renderEndAurora(vec3 worldDir, float time) {
     float h = worldDir.y;
@@ -191,8 +223,8 @@ vec3 renderEndAurora(vec3 worldDir, float time) {
     brightness = max(brightness, 0.0) * AURORA_INTENSITY;
     if (brightness < 0.01) return vec3(0.0);
 
-    vec3 colA = vec3(0.30, 0.04, 0.50);
-    vec3 colB = vec3(0.80, 0.12, 0.80);
+    vec3 colA = NEBULA_CORE_BLUE;
+    vec3 colB = NEBULA_CORE_MAGENTA;
     vec3 colC = vec3(1.00, 0.50, 0.88);
 
     vec3 col = mix(colA, colB, struc);
@@ -204,9 +236,10 @@ vec3 renderEndAurora(vec3 worldDir, float time) {
 vec3 renderEndSky(vec3 worldDir, float time) {
     vec3 col = vec3(0.0);
 
-    col += renderEndAmbientGlow(worldDir);
-    col += renderEndAurora(worldDir, time);
-    col += renderEndSparkleStars(worldDir, time);
+    col += renderNebula(worldDir);
+    col += renderEndAurora(worldDir, time) * 0.6;
+    col += renderEndSparkleStars(worldDir, time) * 0.5; 
+    col += renderEndConstellations(worldDir, time);     
 
     return col;
 }

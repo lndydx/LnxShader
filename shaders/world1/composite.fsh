@@ -22,27 +22,28 @@ uniform mat4 gbufferModelViewInverse;
 varying vec2 texcoord;
 varying float eyeInWater;
 
-#define TARGET_LUMA 0.062
-#define EXPOSURE_MIN 0.80
-#define EXPOSURE_MAX 1.05
-#define EXPOSURE_ADAPT_RATE 1.0
+#define TARGET_LUMA 0.075 //[tuning] target rata-rata kecerahan layar
+#define EXPOSURE_MIN 0.85 //[tuning]
+#define EXPOSURE_MAX 1.15 //[tuning]
+#define EXPOSURE_ADAPT_RATE 1.0 //[tuning] kecepatan adaptasi exposure
 #define NIGHT_TARGET_LUMA_MULT   0.90
 #define NIGHT_EXPOSURE_MIN_MULT  0.70
 #define NIGHT_EXPOSURE_MAX_MULT  0.90
 #define EXPOSURE_ENCODE_MIN (EXPOSURE_MIN * NIGHT_EXPOSURE_MIN_MULT)
 #define EXPOSURE_ENCODE_MAX EXPOSURE_MAX
-#define END_AMBIENT_STRENGTH 0.032
 
-#define BLOOM_THRESHOLD 0.16
+#define END_AMBIENT_STRENGTH 0.22 //[tuning] fill-light global dari nebula ke terrain, JANGAN dibalikin ke 0.03
+
+#define BLOOM_THRESHOLD 0.55 //[tuning] makin kecil makin gampang mancar bloom
 #define BLOOM_KNEE 0.85
-#define BLOOM_INTENSITY 1.00
+#define BLOOM_INTENSITY 1.10 //[tuning] kekuatan bloom keseluruhan
 #define BLOOM_CORE_BOOST 2.0
 #define BLOOM_RADIUS_PX 0.65
-#define BLOOM_RADIUS_PX_WIDE 1.4
+#define BLOOM_RADIUS_PX_WIDE 2.2 //[tuning] radius lebar buat efek halo portal/crystal
 
-#define SATURATION 0.95
-#define VIBRANCE 0.38
-#define CONTRAST 0.0
+#define SATURATION 1.05 //[tuning]
+#define VIBRANCE 0.42   //[tuning] saturasi ekstra khusus highlight
+#define CONTRAST 0.05   //[tuning] jaga rendah biar gak "keras" kayak vanilla
 #define SHARPEN_STRENGTH 0.0
 
 #define NIGHT_HEIGHT_THRESHOLD -0.30
@@ -52,15 +53,13 @@ varying float eyeInWater;
 #define AO_SAMPLES 5
 #define AO_BIAS 0.03
 
-#define END_SKY_ZENITH_REF  vec3(0.003, 0.002, 0.006)
-#define END_SKY_MID_REF     vec3(0.008, 0.005, 0.012)
-#define END_SKY_HORIZON_REF vec3(0.015, 0.010, 0.022)
+#define END_FOG_DENSITY 0.0014        //[tuning] densitas fog jarak
+#define END_FOG_HEIGHT_FALLOFF 0.015  //[tuning] makin besar makin cepat fog menipis ke atas
+#define END_FOG_HEIGHT_REF 40.0       //[tuning] ketinggian dunia acuan fog paling pekat
+#define END_FOG_MAX 0.90              //[tuning] opacity maksimum fog
+#define END_FOG_SKY_BLEND 0.5         //[tuning] seberapa jauh fog nyampur ke langit di horizon
 
-#define END_FOG_COLOR vec3(0.035, 0.030, 0.022)
-#define END_FOG_DENSITY 0.0016
-#define END_FOG_MAX 0.88
-#define END_FOG_SKY_BLEND 0.35
-
+#include "/lib/end_palette.glsl"
 #include "/lib/end_sky.glsl"
 #include "/lib/composite_common.glsl"
 #include "/lib/composite_underwater.glsl"
@@ -68,8 +67,8 @@ varying float eyeInWater;
 
 vec3 calcEndSkyFull(vec3 worldDir) {
     float t = clamp(worldDir.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 baseSky = mix(END_SKY_HORIZON_REF, END_SKY_MID_REF, smoothstep(0.0, 0.45, t));
-    baseSky = mix(baseSky, END_SKY_ZENITH_REF, smoothstep(0.45, 1.0, t));
+    vec3 baseSky = mix(SKY_HORIZON, SKY_MID, smoothstep(0.0, 0.45, t));
+    baseSky = mix(baseSky, SKY_ZENITH, smoothstep(0.45, 1.0, t));
     vec3 endEffects = renderEndSky(worldDir, frameTimeCounter);
     return baseSky + endEffects;
 }
@@ -115,15 +114,20 @@ vec3 reconstructWorldDir(vec2 uv) {
     return dir;
 }
 
-vec3 applyEndVoidFog(vec3 col, float linDepth, bool isSky, vec3 worldDir) {
+vec3 applyEndVoidFog(vec3 col, float linDepth, bool isSky, vec3 worldDir, vec3 worldPos) {
+    float heightDensity = exp(-max(worldPos.y - END_FOG_HEIGHT_REF, 0.0) * END_FOG_HEIGHT_FALLOFF);
+    vec3 fogColor = mix(FOG_FAR, FOG_NEAR, 0.4);
+
     if (isSky) {
         float horizonFactor = 1.0 - smoothstep(0.0, END_FOG_SKY_BLEND, abs(worldDir.y));
-        return mix(col, END_FOG_COLOR, horizonFactor * 0.3);
+        return mix(col, fogColor, horizonFactor * 0.45);
     }
+
     float realDistance = linDepth * far;
-    float fogFactor = 1.0 - exp(-realDistance * END_FOG_DENSITY);
+    float fogFactor = (1.0 - exp(-realDistance * END_FOG_DENSITY)) * mix(0.5, 1.0, heightDensity);
     fogFactor = clamp(fogFactor, 0.0, END_FOG_MAX);
-    return mix(col, END_FOG_COLOR, fogFactor);
+
+    return mix(col, fogColor, fogFactor);
 }
 
 vec3 applyLavaVision(vec3 sceneColor, float linDepth) {
@@ -143,13 +147,13 @@ void main() {
 
     vec3 sunDir = getSunDirWorld();
     vec3 endGradeDir = vec3(0.0, -1.0, 0.0);
+    vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
 
     if (eyeInWater > 1.5) {
         col = applyLavaVision(col, linDepth);
     } else if (eyeInWater > 0.5) {
         float rawDepth1 = texture2D(depthtex1, texcoord).r;
         bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
-        vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
         vec3 rayDir = normalize(worldPos - cameraPosition);
         col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir, sunDir);
     } else {
@@ -178,17 +182,17 @@ void main() {
 
             vec3 worldNormal = normalize((gbufferModelViewInverse * vec4(viewNormal, 0.0)).xyz);
             float skyFacing = clamp(worldNormal.y * 0.5 + 0.5, 0.0, 1.0);
-            vec3 ambientCol = mix(END_SKY_HORIZON_REF, END_SKY_ZENITH_REF, skyFacing);
+            vec3 ambientCol = mix(FOG_FAR, AMBIENT_LIGHT, skyFacing);
             col += ambientCol * END_AMBIENT_STRENGTH * ao;
         } else {
             col = calcEndSkyFull(worldDir);
         }
 
-        col = applyEndVoidFog(col, linDepth, isSky, worldDir);
+        col = applyEndVoidFog(col, linDepth, isSky, worldDir, worldPos);
     }
 
     vec3 bloomContribution = isSky ? vec3(0.0) : getBloomContribution(col, texcoord);
-    col = col + bloomContribution;
+    col = col + bloomContribution * BLOOM_TINT;
 
     float exposure = computeExposure(sunDir);
     col *= exposure;

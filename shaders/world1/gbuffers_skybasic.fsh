@@ -10,21 +10,18 @@ uniform float frameTimeCounter;
 
 varying vec4 starData;
 
-#define END_SKY_ZENITH  vec3(0.002, 0.001, 0.005)
-#define END_SKY_MID     vec3(0.006, 0.004, 0.010)
-#define END_SKY_HORIZON vec3(0.012, 0.008, 0.018)
-
+#include "/lib/end_palette.glsl"
 #include "/lib/end_sky.glsl"
 
 vec3 calcEndSkyColor(vec3 viewDir) {
     vec3 worldDir = normalize((gbufferModelViewInverse * vec4(viewDir, 0.0)).xyz);
     float t = clamp(worldDir.y * 0.5 + 0.5, 0.0, 1.0);
 
-    vec3 baseSky = mix(END_SKY_HORIZON, END_SKY_MID, smoothstep(0.0, 0.45, t));
-    baseSky = mix(baseSky, END_SKY_ZENITH, smoothstep(0.45, 1.0, t));
+    vec3 baseSky = mix(SKY_HORIZON, SKY_MID, smoothstep(0.0, 0.45, t));
+    baseSky = mix(baseSky, SKY_ZENITH, smoothstep(0.45, 1.0, t));
 
     vec3 endEffects = renderEndSky(worldDir, frameTimeCounter);
-    
+
     return baseSky + endEffects;
 }
 
