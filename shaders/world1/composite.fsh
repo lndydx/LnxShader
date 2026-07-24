@@ -22,28 +22,28 @@ uniform mat4 gbufferModelViewInverse;
 varying vec2 texcoord;
 varying float eyeInWater;
 
-#define TARGET_LUMA 0.075 //[tuning] target rata-rata kecerahan layar
-#define EXPOSURE_MIN 0.85 //[tuning]
-#define EXPOSURE_MAX 1.15 //[tuning]
-#define EXPOSURE_ADAPT_RATE 1.0 //[tuning] kecepatan adaptasi exposure
+#define TARGET_LUMA 0.075 
+#define EXPOSURE_MIN 0.85 
+#define EXPOSURE_MAX 1.15 
+#define EXPOSURE_ADAPT_RATE 1.0 
 #define NIGHT_TARGET_LUMA_MULT   0.90
 #define NIGHT_EXPOSURE_MIN_MULT  0.70
 #define NIGHT_EXPOSURE_MAX_MULT  0.90
 #define EXPOSURE_ENCODE_MIN (EXPOSURE_MIN * NIGHT_EXPOSURE_MIN_MULT)
 #define EXPOSURE_ENCODE_MAX EXPOSURE_MAX
 
-#define END_AMBIENT_STRENGTH 0.22 //[tuning] fill-light global dari nebula ke terrain, JANGAN dibalikin ke 0.03
+#define END_AMBIENT_STRENGTH 0.22 
 
-#define BLOOM_THRESHOLD 0.55 //[tuning] makin kecil makin gampang mancar bloom
+#define BLOOM_THRESHOLD 0.55
 #define BLOOM_KNEE 0.85
-#define BLOOM_INTENSITY 1.10 //[tuning] kekuatan bloom keseluruhan
+#define BLOOM_INTENSITY 1.10 
 #define BLOOM_CORE_BOOST 2.0
 #define BLOOM_RADIUS_PX 0.65
-#define BLOOM_RADIUS_PX_WIDE 2.2 //[tuning] radius lebar buat efek halo portal/crystal
+#define BLOOM_RADIUS_PX_WIDE 2.2 
 
-#define SATURATION 1.05 //[tuning]
-#define VIBRANCE 0.42   //[tuning] saturasi ekstra khusus highlight
-#define CONTRAST 0.05   //[tuning] jaga rendah biar gak "keras" kayak vanilla
+#define SATURATION 1.05 
+#define VIBRANCE 0.42 
+#define CONTRAST 0.05  
 #define SHARPEN_STRENGTH 0.0
 
 #define NIGHT_HEIGHT_THRESHOLD -0.30
@@ -53,11 +53,11 @@ varying float eyeInWater;
 #define AO_SAMPLES 5
 #define AO_BIAS 0.03
 
-#define END_FOG_DENSITY 0.0014        //[tuning] densitas fog jarak
-#define END_FOG_HEIGHT_FALLOFF 0.015  //[tuning] makin besar makin cepat fog menipis ke atas
-#define END_FOG_HEIGHT_REF 40.0       //[tuning] ketinggian dunia acuan fog paling pekat
-#define END_FOG_MAX 0.90              //[tuning] opacity maksimum fog
-#define END_FOG_SKY_BLEND 0.5         //[tuning] seberapa jauh fog nyampur ke langit di horizon
+#define END_FOG_DENSITY 0.0090        
+#define END_FOG_HEIGHT_FALLOFF 0.008
+#define END_FOG_HEIGHT_REF 40.0     
+#define END_FOG_MAX 0.95              
+#define END_FOG_SKY_BLEND 0.5     
 
 #include "/lib/end_palette.glsl"
 #include "/lib/end_sky.glsl"
@@ -116,7 +116,7 @@ vec3 reconstructWorldDir(vec2 uv) {
 
 vec3 applyEndVoidFog(vec3 col, float linDepth, bool isSky, vec3 worldDir, vec3 worldPos) {
     float heightDensity = exp(-max(worldPos.y - END_FOG_HEIGHT_REF, 0.0) * END_FOG_HEIGHT_FALLOFF);
-    vec3 fogColor = mix(FOG_FAR, FOG_NEAR, 0.4);
+    vec3 fogColor = mix(FOG_FAR, FOG_NEAR, 0.25) * 0.55;
 
     if (isSky) {
         float horizonFactor = 1.0 - smoothstep(0.0, END_FOG_SKY_BLEND, abs(worldDir.y));

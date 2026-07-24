@@ -12,6 +12,8 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying float isEmissiveBlock;
+varying vec3 viewNormal;
+varying vec3 viewPosVar;
 
 #define WAVE_LEAVES_ID   10010
 #define WAVE_GRASS_ID    10011
@@ -50,7 +52,6 @@ vec3 getWindOffset(vec3 worldPos, float mask, float strength, float phase, float
     return vec3(WIND_DIR.x, 0.0, WIND_DIR.y) * combined * strength * mask;
 }
 
-// FIX LAVA
 float lavaWaveHeight(vec2 pos, float t) {
     return sin(pos.x * 0.8 + pos.y * 0.5 + t * 1.2) * 0.09
          + sin(pos.x * 1.3 - pos.y * 1.1 + t * 0.9) * 0.05;
@@ -64,7 +65,6 @@ void main() {
     int blockId = int(mc_Entity.x);
     isEmissiveBlock = float(blockId == EMISSIVE_BLOCK_ID);
 
-    // WIND ANIMATION
     vec4 position = gl_Vertex;
     vec3 worldPos = position.xyz + cameraPosition;
     vec3 blockPos = floor(worldPos + 0.001);
@@ -99,7 +99,6 @@ void main() {
         float freqMul = hash13(blockPos + 97.0);
         position.xyz += getWindOffset(worldPos, topMask, WIND_DRIPLEAF_STRENGTH, phase, freqMul);
     }
-    // FIX LAVA: wave displacement untuk lava block
     else if (blockId == WAVE_LAVA_ID) {
         vec2 wavePos = mod(worldPos.xz, 8192.0);
         float t = frameTimeCounter;
@@ -108,5 +107,7 @@ void main() {
     }
 
     vec4 viewPos = gl_ModelViewMatrix * position;
+    viewNormal  = normalize(gl_NormalMatrix * gl_Normal);
+    viewPosVar  = viewPos.xyz;
     gl_Position = gl_ProjectionMatrix * viewPos;
 }
