@@ -11,7 +11,11 @@ varying vec4 shadowPos;
 
 void main() {
 	vec4 color = texture2D(texture, texcoord) * glcolor;
-	color *= texture2D(lightmap, lmcoord);
+
+	bool isUnlitEmissiveLayer = (lmcoord.x < 0.001 && lmcoord.y < 0.001);
+	if (!isUnlitEmissiveLayer) {
+		color *= texture2D(lightmap, lmcoord);
+	}
 
 	color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
 
