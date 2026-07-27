@@ -100,21 +100,5 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
 /* DRAWBUFFERS:3 */
 
 void main() {
-    vec4 normalData = texture2D(colortex1, texcoord);
-
-    if (normalData.a < 0.95) {
-        gl_FragData[0] = vec4(0.0);
-        return;
-    }
-
-    float rawDepth = texture2D(depthtex0, texcoord).r;
-    vec3 viewPos = getViewPos(texcoord, rawDepth);
-    vec3 N = normalize(normalData.rgb * 2.0 - 1.0);
-    vec3 V = normalize(-viewPos);
-    vec3 reflectDir = reflect(-V, N);
-
-    bool hit;
-    vec3 reflectionColor = raymarchSSR(viewPos, reflectDir, texcoord, hit);
-
-    gl_FragData[0] = vec4(reflectionColor, hit ? 1.0 : 0.0);
+    gl_FragData[0] = vec4(0.0);
 }

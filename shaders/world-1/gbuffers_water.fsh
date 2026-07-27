@@ -27,7 +27,7 @@ varying float isLava;
 #define LAVA_SPECULAR_INTENSITY 3.6
 #define LAVA_SPECULAR_F0 0.08
 
-/* DRAWBUFFERS:0 */
+/* DRAWBUFFERS:01 */
 
 void main() {
     vec4 baseColor = texture2D(texture, texcoord) * glcolor;
@@ -38,7 +38,7 @@ void main() {
     if (isLava > 0.5) {
         float pulse = 1.0 + sin(frameTimeCounter * 2.0) * LAVA_PULSE_STRENGTH;
         vec3 lavaGlow = baseColor.rgb * lm * LAVA_EMISSIVE_BOOST * pulse;
-        
+
         vec3 N = normalize(viewNormal);
         vec3 V = normalize(-viewPos);
         vec3 fakeGlowDir = normalize((gbufferModelView * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
@@ -47,13 +47,16 @@ void main() {
         lavaGlow += sheen * LAVA_SPECULAR_INTENSITY * baseColor.rgb;
 
         gl_FragData[0] = vec4(lavaGlow, 1.0);
+        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); // not reflective — prevents SSR ghosting
         return;
     }
 
     if (isRealWater > 0.5) {
         gl_FragData[0] = vec4(baseColor.rgb * lm * vec3(0.4, 0.55, 0.65), baseColor.a);
+        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0);
         return;
     }
 
-    gl_FragData[0] = vec4(applyNetherAmbientFill(baseColor.rgb * lm, getNetherAmbientFillColor(netherBiomeId)), baseColor.a); 
-}   
+    gl_FragData[0] = vec4(applyNetherAmbientFill(baseColor.rgb * lm, getNetherAmbientFillColor(netherBiomeId)), baseColor.a);
+    gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0);
+}

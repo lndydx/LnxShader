@@ -21,7 +21,6 @@ vec3 calcEndSkyColor(vec3 viewDir) {
     baseSky = mix(baseSky, SKY_ZENITH, smoothstep(0.45, 1.0, t));
 
     vec3 endEffects = renderEndSky(worldDir, frameTimeCounter);
-
     return baseSky + endEffects;
 }
 

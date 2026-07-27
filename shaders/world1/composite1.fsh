@@ -42,6 +42,9 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
     float travelled = 0.0;
     vec2 hitUV = vec2(-1.0);
 
+    float startDepthRaw = texture2D(depthtex1, screenUV).r;
+    if (startDepthRaw >= 0.9999) { hit = false; return vec3(0.0); }
+
     for (int i = 0; i < SSR_MAX_STEPS; i++) {
         vec4 clipPos = gbufferProjection * vec4(rayPos, 1.0);
         if (clipPos.w <= 0.0) break; 
@@ -53,7 +56,7 @@ vec3 raymarchSSR(vec3 viewPos, vec3 reflectDir, vec2 screenUV, out bool hit) {
         }
 
         float sceneDepthRaw = texture2D(depthtex1, sampleUV).r;
-        if (sceneDepthRaw < 0.9999) {
+        if (sceneDepthRaw < 0.9999 && sceneDepthRaw > 0.0001) {
             vec3 sceneViewPos = getViewPos(sampleUV, sceneDepthRaw);
 
             if (rayPos.z < sceneViewPos.z) {

@@ -16,13 +16,15 @@ varying float isRealWater;
 varying float isLava;
 varying vec4 shadowPos;
 
-#define END_SKY_HORIZON vec3(0.08, 0.05, 0.12)
-#define END_SKY_ZENITH  vec3(0.03, 0.02, 0.05)
+#include "/lib/end_palette.glsl"
+
+#define END_MIN_AMBIENT_LIGHT 0.35
 
 vec3 endSkyColor(vec3 worldDir) {
     float t = clamp(worldDir.y * 0.5 + 0.5, 0.0, 1.0);
-    float horizonBlend = smoothstep(0.30, 0.85, t);
-    return mix(END_SKY_HORIZON, END_SKY_ZENITH, horizonBlend);
+    vec3 baseSky = mix(SKY_HORIZON, SKY_MID, smoothstep(0.0, 0.45, t));
+    baseSky = mix(baseSky, SKY_ZENITH, smoothstep(0.45, 1.0, t));
+    return baseSky;
 }
 
 /* DRAWBUFFERS:01 */
@@ -34,7 +36,10 @@ void main() {
         discard;
     }
 
-    vec3 lm = texture2D(lightmap, lmcoord).rgb;
+    vec2 lmUV = lmcoord;
+    lmUV.y = max(lmUV.y, END_MIN_AMBIENT_LIGHT);
+    vec3 lm = texture2D(lightmap, lmUV).rgb;
+    lm = max(lm, vec3(0.05, 0.04, 0.07));
 
     if (isLava > 0.5) {
         gl_FragData[0] = vec4(baseColor.rgb * lm, 1.0);
@@ -43,8 +48,18 @@ void main() {
     }
 
     if (isRealWater < 0.5) {
-        gl_FragData[0] = vec4(baseColor.rgb * lm, baseColor.a);
-        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0);
+        vec3 worldDir = normalize((gbufferModelViewInverse * vec4(normalize(viewPos), 0.0)).xyz);
+        vec3 skyBehind = endSkyColor(worldDir);
+        vec3 tintedSky = skyBehind * baseColor.rgb * 3.0;
+        vec3 litSolid = baseColor.rgb * max(lm, vec3(0.45));
+
+        float lmLuma = dot(lm, vec3(0.299, 0.587, 0.114));
+        float isLikelySky = 1.0 - step(0.02, lmLuma);
+
+        vec3 finalCol = mix(litSolid, tintedSky, isLikelySky);
+
+        gl_FragData[0] = vec4(finalCol, baseColor.a);
+        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); 
         return;
     }
 

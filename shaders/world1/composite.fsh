@@ -1,6 +1,7 @@
 #version 120
 
 uniform sampler2D colortex0;
+uniform sampler2D colortex1;
 uniform sampler2D colortex2;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
@@ -73,7 +74,7 @@ vec3 calcEndSkyFull(vec3 worldDir) {
     return baseSky + endEffects;
 }
 
-vec3 applyEndColorGrade(vec3 col) {
+vec3 applyEndColorGrade(vec3 col) { 
     float luma = getLuma(col);
     col = mix(vec3(luma), col, SATURATION);
     col = applyVibrance(col, VIBRANCE);
@@ -140,26 +141,32 @@ vec3 applyLavaVision(vec3 sceneColor, float linDepth) {
 /* DRAWBUFFERS:02 */
 
 void main() {
-    vec3 col       = texture2D(colortex0, texcoord).rgb;
-    float rawDepth = texture2D(depthtex0, texcoord).r;
-    float linDepth = linearizeDepth(rawDepth);
-    bool isSky     = rawDepth >= 0.9999;
+    vec3 col          = texture2D(colortex0, texcoord).rgb;
+    float rawDepth    = texture2D(depthtex0, texcoord).r;   
+    float solidDepth  = texture2D(depthtex1, texcoord).r;   
+    float linDepth    = linearizeDepth(rawDepth);
+    bool isSky        = rawDepth   >= 0.9999; 
+    bool hasSolid     = solidDepth <  0.9999;
 
     vec3 sunDir = getSunDirWorld();
     vec3 endGradeDir = vec3(0.0, -1.0, 0.0);
-    vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
 
     if (eyeInWater > 1.5) {
         col = applyLavaVision(col, linDepth);
     } else if (eyeInWater > 0.5) {
         float rawDepth1 = texture2D(depthtex1, texcoord).r;
         bool isWaterToSky = (rawDepth < 0.9999) && (rawDepth1 >= 0.9999);
+        vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
         vec3 rayDir = normalize(worldPos - cameraPosition);
         col = applyClearUnderwater(col, texcoord, rawDepth, linDepth, worldPos, isWaterToSky, rayDir, sunDir);
     } else {
-        vec3 worldDir = reconstructWorldDir(texcoord);
+    vec3 worldDir = reconstructWorldDir(texcoord);
+    vec3 worldPos = getStableWorldPos(texcoord, rawDepth);
 
-        if (!isSky) {
+    vec4 normalData = texture2D(colortex1, texcoord);
+
+    if (!isSky) {
+        if (hasSolid) {
             vec3 viewPos = getViewPos(texcoord, rawDepth);
             vec3 viewNormal = normalize(cross(dFdx(viewPos), dFdy(viewPos)));
 
@@ -184,24 +191,23 @@ void main() {
             float skyFacing = clamp(worldNormal.y * 0.5 + 0.5, 0.0, 1.0);
             vec3 ambientCol = mix(FOG_FAR, AMBIENT_LIGHT, skyFacing);
             col += ambientCol * END_AMBIENT_STRENGTH * ao;
-        } else {
-            col = calcEndSkyFull(worldDir);
         }
+    } else {
+        col = calcEndSkyFull(worldDir);
+    }
 
-        col = applyEndVoidFog(col, linDepth, isSky, worldDir, worldPos);
+    col = applyEndVoidFog(col, linDepth, !hasSolid, worldDir, worldPos);
     }
 
     vec3 bloomContribution = isSky ? vec3(0.0) : getBloomContribution(col, texcoord);
-    col = col + bloomContribution * BLOOM_TINT;
+    col = col + bloomContribution;
 
     float exposure = computeExposure(sunDir);
     col *= exposure;
 
     col = applyEndColorGrade(col);
     col = acesTonemap(col);
-    
-    col = applySharpen(col, texcoord);  
-    
+    col = applySharpen(col, texcoord);
     col = clamp(col, 0.0, 1.0);
 
     gl_FragData[0] = vec4(col, 1.0);
