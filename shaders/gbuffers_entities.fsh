@@ -59,10 +59,6 @@ void main() {
 	}
 	#endif
 	color *= texture2D(lightmap, lm);
-
-	// HIT FLASH — blend ke warna entityColor (merah pas kena damage,
-	// juga dipake buat efek lain kayak creeper flash putih pas mau meledak,
-	// zombie/skeleton freeze biru pas kena potion of harming, dll)
 	color.rgb = mix(color.rgb, entityColor.rgb, entityColor.a);
 
 /* DRAWBUFFERS:0 */

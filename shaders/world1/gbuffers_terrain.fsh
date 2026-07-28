@@ -21,10 +21,10 @@ varying vec3 viewPosVar;
 #define EMISSIVE_GLOW_BOOST    1.5
 #define CRYSTAL_GLOW_STRENGTH  0.55
 
-#define END_SPECULAR_STRENGTH  0.50 //[tuning] kekuatan sheen keseluruhan. 0 = mati total
-#define END_SPECULAR_POWER     4.0  //[tuning] makin besar = highlight makin sempit/tajam di sudut landai
-#define END_SPECULAR_TINT      vec3(0.914, 0.588, 0.886) //[tuning] warna reflect, pucat-violet ikut ambient
-#define END_SPECULAR_MIN_LIGHT 0.45 //[tuning] batas bawah biar tetap ada sheen tipis walau di area gelap/goa
+#define END_SPECULAR_STRENGTH  0.50
+#define END_SPECULAR_POWER     4.0  
+#define END_SPECULAR_TINT      vec3(0.914, 0.588, 0.886) 
+#define END_SPECULAR_MIN_LIGHT 0.45 
 
 void main() {
 	vec4 texColor = texture2D(texture, texcoord);

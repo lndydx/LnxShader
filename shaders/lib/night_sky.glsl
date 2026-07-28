@@ -159,7 +159,6 @@ vec3 renderGalaxy(vec3 dir, vec3 galaxyDir, float time) {
     col = mix(col, colC, detail * 0.4);
     col = mix(col, vec3(0.95, 0.98, 1.0), core * 0.5);
 
-    // dust lane gelap yang nyatu di dalam band, bentuk robek-robek, ngikutin band-nya
     float dustMask = darkDustNoise(local, band) * DUST_STRENGTH;
     brightness *= (1.0 - dustMask);
     col = mix(col, DUST_COLOR, dustMask * 0.9);

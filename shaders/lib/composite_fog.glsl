@@ -28,7 +28,6 @@ vec3 applyRenderDistanceFog(vec3 col, float linDepth, bool isSky, vec3 sunDir, i
     if (isSky) return col;
     float realDistance = linDepth * far;
 
-    // hujan melebarkan+majuin zona fog dikit, bukan mempersempit
     float rainWiden = mix(1.0, 0.8, rain);
     float fogStartAdj = RENDER_DISTANCE_FOG_START * rainWiden;
     float fogEndAdj   = RENDER_DISTANCE_FOG_END;

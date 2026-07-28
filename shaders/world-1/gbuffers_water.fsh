@@ -47,7 +47,7 @@ void main() {
         lavaGlow += sheen * LAVA_SPECULAR_INTENSITY * baseColor.rgb;
 
         gl_FragData[0] = vec4(lavaGlow, 1.0);
-        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); // not reflective — prevents SSR ghosting
+        gl_FragData[1] = vec4(0.5, 0.5, 1.0, 0.0); 
         return;
     }
 
